@@ -1,13 +1,13 @@
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Dict
 
 
 class QueryData(BaseModel):
-    site: str
-    term: str
+    site: str = Field(min_length=1)
+    term: str = Field(min_length=1)
     term_modifiers: Optional[list[Dict[str, str]]] = None
-    since: datetime =
-    until: datetime =
-    limit: int
+    since: datetime = None
+    until: datetime = None
+    limit: int = Field(lte=390000)
     timezone: Optional[str] = datetime.now().astimezone().tzname()

@@ -2,7 +2,11 @@ from starlette.applications import Starlette
 from src.endpoints import endpoints
 import uvicorn
 
-app = Starlette(debug=True, routes=endpoints)
+
+def main() -> None:
+    app = Starlette(debug=True, routes=endpoints)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    main()
