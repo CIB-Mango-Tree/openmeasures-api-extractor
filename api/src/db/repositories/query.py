@@ -27,30 +27,3 @@ class QueryRepository(BaseRepository):
             ).all()
 
         return self._db.scalars(select(Query).where(Query.platform == platform)).all()
-
-    def create(self, query: Query) -> None:
-        self._db.add(query)
-        self._db.commit()
-
-    def update(self, query: Query) -> None:
-        pass
-
-    def delete(self, id: str) -> None:
-        query: Query = self._db.scalars(select(Query).where(Query.id == id)).one()
-
-        if query is None:
-            return
-
-        self._db.delete(query)
-        self._db.commit()
-
-    def batch_delete(self, ids: List[str]) -> None:
-        queries: List[Query] = self._db.scalars(
-            select(Query).where(Query.id in ids)
-        ).all()
-
-        if len(queries) == 0:
-            return
-
-        self._db.delete(queries)
-        self._db.commit()
