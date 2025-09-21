@@ -1,10 +1,11 @@
 from .base import BaseWithTimestamp
-from sqlalchemy import UUID, INTEGER, JSON, VARBINARY, ForeignKey
+from sqlalchemy import UUID, INTEGER, JSON, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
 
 class QueryRequest(BaseWithTimestamp):
-    query_ID: Mapped[UUID] = mapped_column(ForeignKey("query.id"), nullable=False)
+    query_ID: Mapped[UUID] = mapped_column(
+        ForeignKey("query.id"), nullable=False)
     row_count: Mapped[INTEGER] = mapped_column(INTEGER, nullable=False)
     data: Mapped[JSON] = mapped_column(JSON, nullable=False)
-    processed_data: Mapped[VARBINARY] = mapped_column(VARBINARY, nullable=True)
+    cleaned_data: Mapped[JSON] = mapped_column(JSON, nullable=True)
