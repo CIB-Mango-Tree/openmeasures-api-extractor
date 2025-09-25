@@ -1,46 +1,6 @@
 from starlette.responses import JSONResponse
-from enum import Enum
 from typing import Dict, Any
 
 
-class ErrorCodes(Enum):
-    BAD_REQUEST = 400
-    UNAUTHORIZED = 401
-    FORBIDDEN = 403
-    NOT_FOUND = 404
-    METHOD_NOT_ALLOWED = 405
-    NOT_ACCEPTABLE = 406
-    REQUEST_TIMEOUT = 408
-    CONFLICT = 409
-    GONE = 410
-    LEGTH_REQUIRED = 411
-    PRECONDITION_FAILED = 412
-    CONTENT_TOO_LARGE = 413
-    URI_TOO_LONG = 414
-    UNSUPPORTED_MEDIA_TYPE = 415
-    RANGE_NOT_SATISFIABLE = 416
-    EXPECTATION_FAILED = 417
-    IM_A_TEAPOT = 418
-    MISDIRECTED_REQUEST = 421
-    UNPROCESSABLE_CONTENT = 422
-    LOCCKED = 423
-    FAILED_DEPENDECY = 424
-    TOO_EARLY = 425
-    UPGRADE_REQUIRED = 426
-    PRECONDITION_REQUIRED = 428
-    TOO_MANY_REQUESTS = 429
-    HEADER_FIELDS_TOO_LARGE = 431
-    INTERNAL_SERVER_ERROR = 500
-    NOT_IMPLEMENTED = 501
-    BAD_GATEWAY = 502
-    SERVICE_UNAVAILABLE = 503
-    GATEWAY_TIMEOUT = 504
-    HTTP_VERSION_NOT_SUPPORTED = 505
-    VARIANT_ALSO_NEGOTIATES = 506
-    INSUFFICIENT_STORAGE = 507
-    LOOP_DETECTED = 508
-    NOT_EXTENTED = 509
-
-
-def error_response(code: ErrorCodes, data: Dict[str, Any]) -> JSONResponse:
-    return JSONResponse({"code": code.value, "error": data})
+def error_response(code: int, data: Dict[str, Any]) -> JSONResponse:
+    return JSONResponse({"code": code, "error": data})

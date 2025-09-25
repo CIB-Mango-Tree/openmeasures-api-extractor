@@ -14,6 +14,8 @@ class Query(BaseWithTimestamp):
     start_date: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
     end_date: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
     platform: Mapped[VARCHAR] = mapped_column(VARCHAR(64), nullable=False)
+    current_timestamp: Mapped[DateTime] = mapped_column(
+        DateTime, nullable=True)
     rows_fetched: Mapped[INTEGER] = mapped_column(
         INTEGER, nullable=False, default=0)
     percentage: Mapped[FLOAT] = mapped_column(FLOAT, nullable=False, default=0)

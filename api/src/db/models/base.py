@@ -13,3 +13,6 @@ class BaseWithTimestamp(Base):
         DateTime, nullable=False, default=datetime.now()
     )
     updated_at: Mapped[DateTime] = mapped_column(DateTime, nullable=True)
+
+    def set_updated_at(self) -> None:
+        self.updated_at = datetime.now()

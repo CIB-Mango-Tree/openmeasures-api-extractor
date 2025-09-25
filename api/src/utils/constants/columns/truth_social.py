@@ -1,0 +1,15 @@
+TRUTH_COLUMNS_TO_KEEP = [
+    "_source.account.display_name",
+    "_source.account.username",
+    "_source.account.id",
+    "_source.content_cleaned",
+    "_source.created_at",
+    "_source.datatype",
+    "_source.mentions",
+    "_id",
+    "_source.in_reply_to_account_id",
+    "_source.in_reply_to_id",
+    "_source.reblog.id",
+    "_source.replies_count",
+    "_source.reblogs_count",
+]

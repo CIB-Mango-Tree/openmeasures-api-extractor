@@ -13,6 +13,9 @@ class QueryRepository(BaseRepository):
 
         return self._db.scalars(select(Query)).all()
 
+    def find_by_id(self, id: str) -> Query:
+        return self._db.scalars(select(Query).where(Query.id == id)).first()
+
     def find_by_status(self, status: str) -> List[Query]:
         return self._db.scalars(select(Query).where(Query.status == status)).all()
 
@@ -22,7 +25,8 @@ class QueryRepository(BaseRepository):
         if incomplete_only:
             return self._db.scalars(
                 select(Query).where(
-                    (Query.platform == platform) and (Query.status == "INCOMPLETE")
+                    (Query.platform == platform) and (
+                        Query.status == "INCOMPLETE")
                 )
             ).all()
 

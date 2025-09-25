@@ -1,5 +1,6 @@
 from sqlalchemy import INTEGER, DateTime, FLOAT
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from datetime import datetime, timedelta
 
 
 class QueryLimit(DeclarativeBase):
@@ -15,3 +16,8 @@ class QueryLimit(DeclarativeBase):
             return
 
         self.count -= 1
+
+    def set_timestamps(self) -> None:
+        now = datetime.now()
+        self.previous_request_date = now
+        self.limit_refresh_date = now + timedelta(days=1)
