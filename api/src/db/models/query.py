@@ -1,7 +1,7 @@
 from .base import BaseWithTimestamp
 from .term import QueryTerm
 from .request import QueryRequest
-from ...utils.constants import EQ
+from ...utils.constants import EQ, FETCH_IN_PROGRESS
 from sqlalchemy import DateTime, VARCHAR, INTEGER, FLOAT, VARBINARY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from pandas import DataFrame, json_normalize, read_feather
@@ -11,7 +11,7 @@ from typing import List
 
 class Query(BaseWithTimestamp):
     status: Mapped[VARCHAR] = mapped_column(
-        VARCHAR(16), nullable=False, default="FETCH:IN_PROGRESS"
+        VARCHAR(16), nullable=False, default=FETCH_IN_PROGRESS
     )
     timezone: Mapped[VARCHAR] = mapped_column(VARCHAR(64), nullable=True)
     start_date: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
@@ -23,8 +23,8 @@ class Query(BaseWithTimestamp):
         INTEGER, nullable=False, default=0)
     percentage: Mapped[FLOAT] = mapped_column(FLOAT, nullable=False, default=0)
     processed_data: Mapped[VARBINARY] = mapped_column(VARBINARY, nullable=True)
-    terms: Mapped[List[QueryTerm]] = relationship()
-    requests: Mapped[List[QueryRequest]] = relationship()
+    terms: Mapped[List[QueryTerm]] = relationship(cascade="all, delete")
+    requests: Mapped[List[QueryRequest]] = relationship(cascade="all, delete")
 
     def from_requests_to_dataframe(self) -> DataFrame:
         return json_normalize([request.cleaned_data for request in self.requests])
