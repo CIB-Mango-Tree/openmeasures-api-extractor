@@ -39,7 +39,7 @@ class Query(BaseWithTimestamp):
         buffer = BytesIO()
         buffer.write(self.processed_data)
 
-        return read_feather(buffer.read())
+        return read_feather(buffer)
 
     @property
     def term(self) -> str:
