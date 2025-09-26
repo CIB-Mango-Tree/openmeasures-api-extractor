@@ -4,7 +4,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 
 class QueryTerm(Base):
-    query_ID: Mapped[UUID] = mapped_column(ForeignKey("query.id"), nullable=False)
+    query_id: Mapped[UUID] = mapped_column(
+        ForeignKey("query.id"), nullable=False)
     modifier: Mapped[VARCHAR] = mapped_column(
         VARCHAR(8), nullable=False, default="EQUAL"
     )

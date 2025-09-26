@@ -1,6 +1,7 @@
 from .base import BaseRepository
 from sqlalchemy import select
 from ..models import Query
+from ...utils.constants import FETCH_INCOMPLETE, CLEAN_INCOMPLETE, PARSE_INCOMPLETE
 from typing import List
 
 
@@ -8,7 +9,10 @@ class QueryRepository(BaseRepository):
     def find_all(self, incomplete_only: bool = False) -> List[Query]:
         if incomplete_only:
             return self._db.scalars(
-                select(Query).where(Query.status == "INCOMPLETE")
+                select(Query).where(
+                    Query.status
+                    in [FETCH_INCOMPLETE, CLEAN_INCOMPLETE, PARSE_INCOMPLETE]
+                )
             ).all()
 
         return self._db.scalars(select(Query)).all()
@@ -25,8 +29,11 @@ class QueryRepository(BaseRepository):
         if incomplete_only:
             return self._db.scalars(
                 select(Query).where(
-                    (Query.platform == platform) and (
-                        Query.status == "INCOMPLETE")
+                    (Query.platform == platform)
+                    and (
+                        Query.status
+                        in [FETCH_INCOMPLETE, CLEAN_INCOMPLETE, PARSE_INCOMPLETE]
+                    )
                 )
             ).all()
 

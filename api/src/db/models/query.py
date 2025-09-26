@@ -1,8 +1,11 @@
 from .base import BaseWithTimestamp
 from .term import QueryTerm
 from .request import QueryRequest
+from ...utils.constants import EQ
 from sqlalchemy import DateTime, VARCHAR, INTEGER, FLOAT, VARBINARY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from pandas import DataFrame, json_normalize, read_feather
+from io import BytesIO
 from typing import List
 
 
@@ -22,3 +25,37 @@ class Query(BaseWithTimestamp):
     processed_data: Mapped[VARBINARY] = mapped_column(VARBINARY, nullable=True)
     terms: Mapped[List[QueryTerm]] = relationship()
     requests: Mapped[List[QueryRequest]] = relationship()
+
+    def from_requests_to_dataframe(self) -> DataFrame:
+        return json_normalize([request.cleaned_data for request in self.requests])
+
+    def from_dataframe_to_processed_data(self, data_frame: DataFrame) -> None:
+        buffer = BytesIO()
+
+        data_frame.to_feather(buffer)
+        self.processed_data = buffer.getvalue()
+
+    def from_processed_data_to_dataframe(self) -> DataFrame:
+        buffer = BytesIO()
+        buffer.write(self.processed_data)
+
+        return read_feather(buffer.read())
+
+    @property
+    def term(self) -> str:
+        if len(self.terms) == 0:
+            return ""
+
+        base = next(
+            (term.term for term in self.terms if term.modifier == EQ), None)
+
+        if base is None:
+            return ""
+
+        output = base
+
+        for term in self.terms:
+            if term.modifier != EQ:
+                output += f" {term.modifier} {term.term}"
+
+        return output

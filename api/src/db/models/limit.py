@@ -21,3 +21,6 @@ class QueryLimit(DeclarativeBase):
         now = datetime.now()
         self.previous_request_date = now
         self.limit_refresh_date = now + timedelta(days=1)
+
+    def set_percentage(self) -> None:
+        self.percentage = (self.count / 39) * 100

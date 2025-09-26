@@ -1,16 +1,17 @@
+from .term import TermValidator
 from datetime import datetime
 from pydantic import BaseModel, Field
-from typing import Optional, Dict
+from typing import Optional, List
 
 
-class CreateQueryData(BaseModel):
+class CreateQueryValidator(BaseModel):
     platform: str = Field(min_length=1)
     term: str = Field(min_length=1)
-    term_modifiers: Optional[list[Dict[str, str]]] = None
-    since: datetime = None
-    until: datetime = None
+    term_modifiers: Optional[List[TermValidator]] = None
+    start_data: datetime = None
+    end_date: datetime = None
     timezone: Optional[str] = datetime.now().astimezone().tzname()
 
 
-class UpdateQueryData(BaseModel):
+class UpdateQueryValidator(BaseModel):
     status: str = Field(min_length=1)

@@ -1,11 +1,12 @@
 from ..settings import API_URL
-from ..db.models import Query, QueryTerm, QueryRequest, QueryLimit
+from ..db.models import Query, QueryTerm, QueryRequest
 from ..db.repositories import (
     QueryRespository,
     QueryTermRepository,
     QueryRequestRepository,
     QueryLimitRepository,
 )
+from ..validator import CreateQueryValidator, UpdateQueryValidator, ParamValidator
 from ..event import Event
 from ..utils.sanitize import clean_text
 from ..utils.constants import (
@@ -24,16 +25,20 @@ from ..utils.constants import (
     BLUESKY_COLUMNS_TO_KEEP,
     TRUTH_COLUMNS_TO_KEEP,
 )
-from pandas import json_normalize
 from requests import get
 from pyventus import AsyncIOEventEmitter
 from asyncio import run
-from io import BytesIO
 from datetime import datetime
 from typing import List
 
 
 class QueryService:
+    _query_repo: QueryRespository
+    _query_term_repo: QueryTermRepository
+    _query_request_repo: QueryRequestRepository
+    _query_limit_repo: QueryLimitRepository
+    _emitter: AsyncIOEventEmitter
+
     def __init__(
         self,
         query_repo: QueryRespository,
@@ -42,11 +47,11 @@ class QueryService:
         query_limit_repo: QueryLimitRepository,
         emitter: AsyncIOEventEmitter,
     ) -> None:
-        self._emitter: AsyncIOEventEmitter = emitter
-        self._query_repo: QueryRespository = query_repo
-        self._query_term_repo: QueryTermRepository = query_term_repo
-        self._query_request_repo: QueryRequestRepository = query_request_repo
-        self._query_limit_repo: QueryLimitRepository = query_limit_repo
+        self._emitter = emitter
+        self._query_repo = query_repo
+        self._query_term_repo = query_term_repo
+        self._query_request_repo = query_request_repo
+        self._query_limit_repo = query_limit_repo
 
     def _fetch_data(self, query: Query) -> None:
         if query.status == FETCH_CONTINUE:
@@ -62,6 +67,7 @@ class QueryService:
         limit = self._query_limit_repo.find()
         params = {
             "site": query.platform,
+            "term": query.term,
             "since": query.current_timestamp
             if query.current_timestamp is not None
             else query.start_date,
@@ -228,9 +234,7 @@ class QueryService:
         if query.status == PARSE_INCOMPLETE:
             return
 
-        data_frame = json_normalize(
-            [request.cleaned_data for request in query.requests]
-        )
+        data_frame = query.from_requests_to_dataframe()
 
         if query.platform == "bluesky":
             data_frame = data_frame[BLUESKY_COLUMNS_TO_KEEP]
@@ -240,13 +244,9 @@ class QueryService:
 
         data_frame.columns = data_frame.columns.str.replace(
             "_source.", "", regex=False)
-        buffer = BytesIO()
-
-        data_frame.to_feather(buffer)
-
-        query.processed_data = buffer.getvalue()
         query.status = QUERY_COMPLETE
 
+        query.from_dataframe_to_processed_data(data_frame)
         self._query_repo.update(query)
         self._emitter.emit(
             QUERY_COMPLETE, payload=Event(
@@ -266,8 +266,69 @@ class QueryService:
 
         run(func())
 
-    def get(self) -> List[Query]:
-        return self._query_repo.find_all()
+    def get(self, imcomplete_only: bool = False) -> List[Query]:
+        return self._query_repo.find_all(imcomplete_only)
 
     def get_by_id(self, id: str) -> Query:
         return self._query_repo.find_by_id(id)
+
+    def get_by_status(self, status: str) -> List[Query]:
+        return self._query_repo.find_by_status(status)
+
+    def get_by_platform(
+        self, platform: str, imcomplete_only: bool = False
+    ) -> List[Query]:
+        return self._query_repo.find_by_platform(platform, imcomplete_only)
+
+    def create(self, data: CreateQueryValidator) -> Query:
+        query = Query(
+            start_date=data.start_data, end_date=data.end_date, platform=data.platform
+        )
+
+        if data.timezone is not None:
+            query.timezone = data.timezone
+
+        self._query_repo.create(query)
+
+        terms = [QueryTerm(query_id=query, term=data.term)]
+
+        if data.term_modifiers is not None and len(data.term_modifiers) > 0:
+            terms.extend(
+                [
+                    QueryTerm(
+                        query_id=query.id,
+                        modifier=term_modifier.modifier,
+                        term=term_modifier.term,
+                    )
+                    for term_modifier in data.term_modifiers
+                ]
+            )
+
+        self._query_term_repo.batch_create(terms)
+        query.terms.extend(terms)
+        self.process_query(query)
+
+        return query
+
+    def update(self, id: str, data: UpdateQueryValidator) -> Query:
+        query = self._query_repo.find_by_id(id)
+
+        if query is None:
+            return None
+
+        if query.status == FETCH_INCOMPLETE and data.status == FETCH_CONTINUE:
+            query.status = FETCH_CONTINUE
+
+        if query.status == CLEAN_INCOMPLETE and data.status == CLEAN_CONTINUE:
+            query.status = CLEAN_CONTINUE
+
+        if query.status == PARSE_INCOMPLETE and data.status == PARSE_CONTINUE:
+            query.status = PARSE_IN_PROGRESS
+
+        self._query_repo.update(query)
+        self.process_query(query)
+
+        return query
+
+    def delete(self, data: ParamValidator) -> None:
+        pass
