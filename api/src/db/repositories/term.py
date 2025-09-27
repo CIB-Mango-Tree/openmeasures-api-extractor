@@ -6,10 +6,10 @@ from typing import List
 
 class QueryTermRepository(BaseRepository[QueryTerm]):
     def find_by_query_id(self, id: str) -> List[QueryTerm]:
-        return self._db.scalars(select(QueryTerm).where(QueryTerm.query_ID == id))
+        return self._db.scalars(select(QueryTerm).where(QueryTerm.query_ID == id)).all()
 
     def batch_create(self, models: List[QueryTerm]) -> None:
-        self._db.add(models)
+        self._db.add_all(models)
         self._db.commit()
 
     def batch_delete(self, ids: List[str]) -> None:
