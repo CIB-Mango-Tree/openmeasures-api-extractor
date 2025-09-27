@@ -11,7 +11,7 @@ class QueryExportService:
     def __init__(self, query_repo: QueryRepository) -> None:
         self._query_repo = query_repo
 
-    def export(self, data: ExportParamValidator) -> bytes:
+    def export(self, data: ExportParamValidator) -> FileExport:
         query = self._query_repo.find_by_id(data.id)
 
         if query is None:

@@ -26,7 +26,7 @@ from ..utils.constants import (
     TRUTH_COLUMNS_TO_KEEP,
 )
 from requests import get
-from pyventus import AsyncIOEventEmitter
+from pyventus.events import AsyncIOEventEmitter
 from asyncio import run
 from datetime import datetime
 from typing import List

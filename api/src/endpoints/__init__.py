@@ -1,5 +1,7 @@
-from starlette.routing import Route
 from .home import Home
+from .query import QueryEndpoint
+from .limit import QueryLimitEndpoint
+from .export import QueryExportEndpoint
 
-endpoints = [Route("/", Home)]
-__all__ = ["endpoints"]
+__all__ = ["Home", "QueryEndpoint",
+           "QueryLimitEndpoint", "QueryExportEndpoint"]
