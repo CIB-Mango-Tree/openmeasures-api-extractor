@@ -10,7 +10,12 @@ from src.db.repositories import (
     QueryRequestRepository,
     QueryLimitRepository,
 )
-from src.services import QueryService, QueryLimitService, QueryExportService
+from src.services import (
+    QueryService,
+    QueryLimitService,
+    QueryExportService,
+    WebSocketService,
+)
 from src.endpoints import QueryEndpoint
 from src.settings import HOST, PORT
 
@@ -27,15 +32,19 @@ def main() -> None:
     )
     query_limit_service = QueryLimitService(query_limit_repo)
     query_export_service = QueryExportService(query_repo)
+    websocket_service = WebSocketService(query_repo)
     query_container = Container()
     query_limit_container = Container()
     query_export_container = Container()
+    websocket_container = Container()
     query_container[QueryService] = query_service
     query_limit_container[QueryLimitService] = query_limit_service
     query_export_container[QueryExportService] = query_export_service
+    websocket_container[WebSocketService] = websocket_service
     query_router = StarletteIntegration(query_container)
     query_limit_router = StarletteIntegration(query_limit_container)
     query_export_router = StarletteIntegration(query_export_container)
+    websocket_router = StarletteIntegration(websocket_container)
     routes = [query_router.route("/api/queries", endpoint=QueryEndpoint)]
     app = Starlette(debug=True, routes=routes)
 
