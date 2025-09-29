@@ -27,7 +27,7 @@ from ..utils.constants import (
 )
 from requests import get
 from pyventus.events import AsyncIOEventEmitter
-from asyncio import run
+from asyncio import create_task
 from datetime import datetime
 from typing import List
 
@@ -264,7 +264,7 @@ class QueryService:
             if query.status in [PARSE_CONTINUE, PARSE_IN_PROGRESS]:
                 self._parse_data(query)
 
-        run(func())
+        create_task(func())
 
     def get(self, imcomplete_only: bool = False) -> List[Query]:
         return self._query_repo.find_all(imcomplete_only)
