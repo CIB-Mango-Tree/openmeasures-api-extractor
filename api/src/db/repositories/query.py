@@ -1,11 +1,11 @@
 from .base import BaseRepository
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from ..models import Query
 from ...utils.constants import FETCH_INCOMPLETE, CLEAN_INCOMPLETE, PARSE_INCOMPLETE
 from typing import List
 
 
-class QueryRepository(BaseRepository):
+class QueryRepository(BaseRepository[Query]):
     def find_all(self, incomplete_only: bool = False) -> List[Query]:
         if incomplete_only:
             return self._db.scalars(
@@ -38,3 +38,7 @@ class QueryRepository(BaseRepository):
             ).all()
 
         return self._db.scalars(select(Query).where(Query.platform == platform)).all()
+
+    def batch_delete(self, ids: List[str]) -> None:
+        self._db.execute(delete(Query).where(Query.id.in_(ids)))
+        self._db.commit()
