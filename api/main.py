@@ -16,7 +16,7 @@ from src.services import (
     QueryExportService,
     WebSocketService,
 )
-from src.endpoints import QueryEndpoint
+from src.endpoints import QueryEndpoint, UpdateStreamEndpoint
 from src.settings import HOST, PORT
 
 
@@ -45,7 +45,10 @@ def main() -> None:
     query_limit_router = StarletteIntegration(query_limit_container)
     query_export_router = StarletteIntegration(query_export_container)
     websocket_router = StarletteIntegration(websocket_container)
-    routes = [query_router.route("/api/queries", endpoint=QueryEndpoint)]
+    routes = [
+        query_router.route("/api/queries", endpoint=QueryEndpoint),
+        websocket_router.ws_route("/api/ws/updates", UpdateStreamEndpoint),
+    ]
     app = Starlette(debug=True, routes=routes)
 
     run(app, host=HOST, port=PORT)

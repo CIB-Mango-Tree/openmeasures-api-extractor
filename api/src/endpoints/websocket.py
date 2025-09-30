@@ -1,0 +1,82 @@
+from starlette.endpoints import WebSocketEndpoint
+from starlette.websockets import WebSocket
+from pydantic import ValidationError
+from ..services import WebSocketService
+from ..validator import SubscriptionActionValidator
+from ..utils.constants import SUBSCRIBE, UNSUBSCRIBE
+from typing import Any
+
+
+class UpdateStreamEndpoint(WebSocketEndpoint):
+    async def on_connect(
+        self, socket: WebSocket, websocket_service: WebSocketService
+    ) -> None:
+        connection = websocket_service.create(socket)
+
+        await connection.socket.send_json({"message": "Connected!!!"})
+
+    async def on_receive(
+        self, socket: WebSocket, data: Any, websocekt_service: WebSocketService
+    ) -> None:
+        connection = websocekt_service.get_by_id(socket.state["id"])
+
+        try:
+            validator_data = SubscriptionActionValidator.model_validate(data)
+
+            if validator_data.action.value == SUBSCRIBE:
+                if connection.topics.has(validator_data.topic):
+                    await connection.socket.send_json(
+                        {
+                            "event": "SUBSCRIBE:ALREADY_EXISTS",
+                            "data": {
+                                "message": "this connection is already subscribed to this topic"
+                            },
+                        }
+                    )
+                    return
+
+                connection = websocekt_service.subscribe(
+                    connection.id, validator_data.topic
+                )
+
+                await connection.socket.send_json(
+                    {
+                        "event": "SUBSCRIBE:SUCCES",
+                        "data": {
+                            "message": f"this connection has been subscribed to topic: {validator_data.topic}"
+                        },
+                    }
+                )
+
+            if validator_data.action.value == UNSUBSCRIBE:
+                connection = websocekt_service.unsubscribe(
+                    connection.id, validator_data.topic
+                )
+
+                await connection.socket.send_json(
+                    {
+                        "event": "UNSUBSCRIBE:SUCCES",
+                        "data": {
+                            "message": f"this connection has been unsubscribed from topic: {validator_data.topic}"
+                        },
+                    }
+                )
+
+        except ValidationError as err:
+            await connection.socket.send_json(
+                {
+                    "event": "ERRORS:VALIDATION_ERROR",
+                    "data": {
+                        "message": "an error occurred when validating subscription action",
+                        "errors": err.json(),
+                    },
+                }
+            )
+
+    async def on_disconnect(
+        self, socket: WebSocket, close_code: int, websocket_service: WebSocketService
+    ) -> None:
+        connection = websocket_service.get_by_id(socket.state["id"])
+
+        await connection.socket.send_json({"message": "Closing connection..."})
+        websocket_service.delete(connection.id)

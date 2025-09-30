@@ -61,6 +61,7 @@ from .mime import EXCEL_CONTENT_TYPE, JSON_CONTENT_TYPE, CSV_CONTENT_TYPE
 from .columns.truth_social import TRUTH_COLUMNS_TO_KEEP
 from .columns.bluesky import BLUESKY_COLUMNS_TO_KEEP
 from .term_modifiers import EQ, AND, OR
+from .subscribe import SUBSCRIBE, UNSUBSCRIBE
 
 __all__ = [
     "FETCH_IN_PROGRESS",
@@ -127,4 +128,6 @@ __all__ = [
     "EXCEL_CONTENT_TYPE",
     "JSON_CONTENT_TYPE",
     "CSV_CONTENT_TYPE",
+    "SUBSCRIBE",
+    "UNSUBSCRIBE",
 ]
