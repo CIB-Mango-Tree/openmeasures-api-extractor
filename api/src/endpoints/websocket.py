@@ -41,7 +41,7 @@ class UpdateStreamEndpoint(WebSocketEndpoint):
 
                 await connection.socket.send_json(
                     {
-                        "event": "SUBSCRIBE:SUCCES",
+                        "event": "SUBSCRIBE:SUCCESS",
                         "data": {
                             "message": f"this connection has been subscribed to topic: {validator_data.topic}"
                         },
@@ -55,7 +55,7 @@ class UpdateStreamEndpoint(WebSocketEndpoint):
 
                 await connection.socket.send_json(
                     {
-                        "event": "UNSUBSCRIBE:SUCCES",
+                        "event": "UNSUBSCRIBE:SUCCESS",
                         "data": {
                             "message": f"this connection has been unsubscribed from topic: {validator_data.topic}"
                         },
