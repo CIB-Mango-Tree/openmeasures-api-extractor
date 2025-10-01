@@ -6,7 +6,12 @@ from ..db.repositories import (
     QueryRequestRepository,
     QueryLimitRepository,
 )
-from ..validator import CreateQueryValidator, UpdateQueryValidator, ParamValidator
+from ..validator import (
+    CreateQueryValidator,
+    UpdateQueryValidator,
+    DeleteQueriesValidator,
+    ParamValidator,
+)
 from ..event import Event
 from ..utils.sanitize import clean_text
 from ..utils.constants import (
@@ -26,7 +31,7 @@ from ..utils.constants import (
     TRUTH_COLUMNS_TO_KEEP,
 )
 from requests import get
-from pyventus.events import AsyncIOEventEmitter
+from pyventus.events import AsyncIOEventEmitter, EventLinker
 from asyncio import create_task
 from datetime import datetime
 from typing import List
@@ -58,8 +63,7 @@ class QueryService:
             query.status = FETCH_IN_PROGRESS
 
             self._query_repo.update(query)
-            self._emitter.emit(FETCH_UPDATE_PROGRESS,
-                               payload=Event(data=query))
+            self._emitter.emit(FETCH_UPDATE_PROGRESS, payload=Event(data=query))
 
         if query.status == FETCH_INCOMPLETE:
             return
@@ -75,8 +79,7 @@ class QueryService:
             "limit": 10000,
             "querytype": "boolean_content",
         }
-        query_range = (query.end_date -
-                       query.start_date).total_seconds() / 3600
+        query_range = (query.end_date - query.start_date).total_seconds() / 3600
 
         while True:
             try:
@@ -182,8 +185,7 @@ class QueryService:
                 params["since"] = last_created_at
 
                 self._query_repo.update(query)
-                self._emitter.emit(FETCH_UPDATE_PROGRESS,
-                                   payload=Event(data=query))
+                self._emitter.emit(FETCH_UPDATE_PROGRESS, payload=Event(data=query))
 
             except Exception as e:
                 print(f"Error occurred: {e}")
@@ -242,15 +244,13 @@ class QueryService:
         if query.platform == "truth_social":
             data_frame = data_frame[TRUTH_COLUMNS_TO_KEEP]
 
-        data_frame.columns = data_frame.columns.str.replace(
-            "_source.", "", regex=False)
+        data_frame.columns = data_frame.columns.str.replace("_source.", "", regex=False)
         query.status = QUERY_COMPLETE
 
         query.from_dataframe_to_processed_data(data_frame)
         self._query_repo.update(query)
         self._emitter.emit(
-            QUERY_COMPLETE, payload=Event(
-                data=query, message="query is now complete")
+            QUERY_COMPLETE, payload=Event(data=query, message="query is now complete")
         )
 
     def process_query(self, query: Query) -> None:
@@ -264,7 +264,11 @@ class QueryService:
             if query.status in [PARSE_CONTINUE, PARSE_IN_PROGRESS]:
                 self._parse_data(query)
 
-        create_task(func())
+        task = create_task(func())
+
+        @EventLinker.once(f"CANCEL:{query.id}", force_async=True)
+        def handle_task_cancel() -> None:
+            task.cancel()
 
     def get(self, imcomplete_only: bool = False) -> List[Query]:
         return self._query_repo.find_all(imcomplete_only)
@@ -326,9 +330,13 @@ class QueryService:
             query.status = PARSE_IN_PROGRESS
 
         self._query_repo.update(query)
+        self._emitter.emit(f"CANCEL:{query.id}")
         self.process_query(query)
 
         return query
 
     def delete(self, data: ParamValidator) -> None:
-        pass
+        self._query_repo.delete(data.id)
+
+    def batch_delete(self, data: DeleteQueriesValidator) -> None:
+        self._query_repo.batch_delete(data.ids)
