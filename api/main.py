@@ -16,12 +16,18 @@ from src.services import (
     QueryExportService,
     WebSocketService,
 )
-from src.endpoints import QueryEndpoint, UpdateStreamEndpoint
-from src.settings import HOST, PORT
+from src.endpoints import (
+    QueriesEndpoint,
+    QueryEndpoint,
+    QueryLimitEndpoint,
+    QueryExportEndpoint,
+    UpdateStreamEndpoint,
+)
+from src.settings import HOST, PORT, DATABASE_URL
 
 
 def main() -> None:
-    db = init_DB("sqlite://backend.db")
+    db = init_DB(DATABASE_URL)
     emitter = AsyncIOEventEmitter()
     query_repo = QueryRepository(db)
     query_term_repo = QueryTermRepository(db)
@@ -46,8 +52,14 @@ def main() -> None:
     query_export_router = StarletteIntegration(query_export_container)
     websocket_router = StarletteIntegration(websocket_container)
     routes = [
-        query_router.route("/api/queries", endpoint=QueryEndpoint),
-        websocket_router.ws_route("/api/ws/updates", UpdateStreamEndpoint),
+        query_router.route("/api/queries", endpoint=QueriesEndpoint),
+        query_router.route("/api/queries/{id:uuid}", endpoint=QueryEndpoint),
+        query_export_router.route(
+            "/api/queries/{id:uuid}/download/{format:str}", endpoint=QueryExportEndpoint
+        ),
+        query_limit_router.route("/api/limit", endpoint=QueryLimitEndpoint),
+        websocket_router.ws_route(
+            "/api/ws/updates", endpoint=UpdateStreamEndpoint),
     ]
     app = Starlette(debug=True, routes=routes)
 
