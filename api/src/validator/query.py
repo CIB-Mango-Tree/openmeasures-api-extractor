@@ -1,6 +1,6 @@
+from pydantic import BaseModel, Field, UUID
 from .term import TermValidator
 from datetime import datetime
-from pydantic import BaseModel, Field
 from typing import Optional, List
 
 
@@ -15,3 +15,7 @@ class CreateQueryValidator(BaseModel):
 
 class UpdateQueryValidator(BaseModel):
     status: str = Field(min_length=1)
+
+
+class DeleteQueriesValidator(BaseModel):
+    ids: List[UUID]
