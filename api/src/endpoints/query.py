@@ -4,6 +4,7 @@ from starlette.responses import JSONResponse
 from lagom import injectable
 from pydantic import ValidationError
 from ..services import QueryService
+from ..serializers import QuerySerializer
 from ..validator import (
     ParamValidator,
     CreateQueryValidator,
@@ -18,7 +19,12 @@ class QueriesEndpoint(HTTPEndpoint):
     async def get(
         self, request: Request, query_service: QueryService = injectable
     ) -> JSONResponse:
-        return OK_collection_response(OK, query_service.get())
+        queries = query_service.get()
+        query_dump = [
+            QuerySerializer.model_validate(query).model_dump() for query in queries
+        ]
+
+        return OK_collection_response(OK, query_dump)
 
     async def post(
         self, request: Request, query_service: QueryService = injectable
@@ -27,8 +33,9 @@ class QueriesEndpoint(HTTPEndpoint):
             body = await request.json()
             validator_data = CreateQueryValidator.model_validate(body)
             query = query_service.create(validator_data)
+            query_model = QuerySerializer.model_validate(query)
 
-            return OK_response(CREATED, query)
+            return OK_response(CREATED, query_model.model_dump())
 
         except ValidationError as err:
             return error_response(
@@ -68,7 +75,9 @@ class QueryEndpoint(HTTPEndpoint):
                     NOT_FOUND, {"message": "query could not be found"}
                 )
 
-            return OK_response(OK, query)
+            query_model = QuerySerializer.model_validate(query)
+
+            return OK_response(OK, query_model.model_dump())
 
         except ValidationError as err:
             return error_response(
@@ -93,8 +102,9 @@ class QueryEndpoint(HTTPEndpoint):
             validator_data = UpdateQueryValidator.model_validate(body)
             updated_query = query_service.update(
                 param_validator.id, validator_data)
+            query_model = QuerySerializer.model_validate(updated_query)
 
-            return OK_response(OK, updated_query)
+            return OK_response(OK, query_model.model_dump())
 
         except ValidationError as err:
             return error_response(

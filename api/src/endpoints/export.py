@@ -1,7 +1,6 @@
 from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
-from starlette.responses import JSONResponse
 from pydantic import ValidationError
 from lagom import injectable
 from ..services import QueryExportService
@@ -23,7 +22,7 @@ from ..utils.constants import (
 class QueryExportEndpoint(HTTPEndpoint):
     async def get(
         self, request: Request, export_service: QueryExportService = injectable
-    ) -> JSONResponse:
+    ) -> Response:
         try:
             params = ExportParamValidator.model_validate(request.path_params)
             file_export = export_service.export(params)
