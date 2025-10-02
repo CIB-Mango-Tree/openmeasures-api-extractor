@@ -63,7 +63,8 @@ class QueryService:
             query.status = FETCH_IN_PROGRESS
 
             self._query_repo.update(query)
-            self._emitter.emit(FETCH_UPDATE_PROGRESS, payload=Event(data=query))
+            self._emitter.emit(FETCH_UPDATE_PROGRESS,
+                               payload=Event(data=query))
 
         if query.status == FETCH_INCOMPLETE:
             return
@@ -79,7 +80,8 @@ class QueryService:
             "limit": 10000,
             "querytype": "boolean_content",
         }
-        query_range = (query.end_date - query.start_date).total_seconds() / 3600
+        query_range = (query.end_date -
+                       query.start_date).total_seconds() / 3600
 
         while True:
             try:
@@ -185,7 +187,8 @@ class QueryService:
                 params["since"] = last_created_at
 
                 self._query_repo.update(query)
-                self._emitter.emit(FETCH_UPDATE_PROGRESS, payload=Event(data=query))
+                self._emitter.emit(FETCH_UPDATE_PROGRESS,
+                                   payload=Event(data=query))
 
             except Exception as e:
                 print(f"Error occurred: {e}")
@@ -244,13 +247,15 @@ class QueryService:
         if query.platform == "truth_social":
             data_frame = data_frame[TRUTH_COLUMNS_TO_KEEP]
 
-        data_frame.columns = data_frame.columns.str.replace("_source.", "", regex=False)
+        data_frame.columns = data_frame.columns.str.replace(
+            "_source.", "", regex=False)
         query.status = QUERY_COMPLETE
 
         query.from_dataframe_to_processed_data(data_frame)
         self._query_repo.update(query)
         self._emitter.emit(
-            QUERY_COMPLETE, payload=Event(data=query, message="query is now complete")
+            QUERY_COMPLETE, payload=Event(
+                data=query, message="query is now complete")
         )
 
     def process_query(self, query: Query) -> None:
@@ -336,7 +341,15 @@ class QueryService:
         return query
 
     def delete(self, data: ParamValidator) -> None:
+        if not self._query_repo.exists(data.id):
+            return
+
+        self._emitter.emit(f"CANCEL:{data.id}")
         self._query_repo.delete(data.id)
 
     def batch_delete(self, data: DeleteQueriesValidator) -> None:
+        for id in data.ids:
+            if self._query_repo.exists(id):
+                self._emitter.emit(f"CANCEL:{id}")
+
         self._query_repo.batch_delete(data.ids)
