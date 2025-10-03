@@ -1,5 +1,5 @@
 from starlette.applications import Starlette
-from uvicorn import run
+from uvicorn import Server, Config
 from pyventus.events import AsyncIOEventEmitter
 from lagom import Container
 from lagom.integrations.starlette import StarletteIntegration
@@ -24,6 +24,8 @@ from src.endpoints import (
     UpdateStreamEndpoint,
 )
 from src.settings import HOST, PORT, DATABASE_URL
+from signal import SIGINT, default_int_handler, signal
+from asyncio import Event, CancelledError, create_task
 
 
 def main() -> None:
@@ -62,8 +64,33 @@ def main() -> None:
             "/api/ws/updates", endpoint=UpdateStreamEndpoint),
     ]
     app = Starlette(debug=True, routes=routes)
+    config = Config(app, host=HOST, port=PORT,
+                    log_level="error", lifespan="off")
+    server = Server(config)
+    shutdown_event = Event()
 
-    run(app, host=HOST, port=PORT)
+    async def shutdown_handler():
+        if shutdown_event.is_set():
+            return
+
+        shutdown_event.set()
+        server.should_exit = True
+
+    def signal_handler(sig, frame):
+        create_task(shutdown_handler())
+
+    signal(SIGINT, signal_handler)
+
+    try:
+        server.run()
+
+    except KeyboardInterrupt:
+        print("keyboard interrupt detected. gracefully shutting down server...")
+
+    except CancelledError:
+        print("gracefully shutting down server...")
+
+    signal(SIGINT, default_int_handler)
 
 
 if __name__ == "__main__":
