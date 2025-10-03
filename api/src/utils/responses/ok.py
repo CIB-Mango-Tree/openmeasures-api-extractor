@@ -8,5 +8,5 @@ def OK_response(code: int, data: Any) -> JSONResponse:
 
 def OK_collection_response(code: int, data: list[Any]) -> JSONResponse:
     return JSONResponse(
-        {"code": code.value, "count": len(data), "data": data}, status_code=code
+        {"code": code, "count": len(data), "data": data}, status_code=code
     )

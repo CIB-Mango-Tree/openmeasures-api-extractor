@@ -27,7 +27,7 @@ from src.settings import HOST, PORT, DATABASE_URL
 
 
 def main() -> None:
-    db = init_DB(DATABASE_URL)
+    db = init_DB(DATABASE_URL)()
     emitter = AsyncIOEventEmitter()
     query_repo = QueryRepository(db)
     query_term_repo = QueryTermRepository(db)
