@@ -3,6 +3,8 @@ from uvicorn import Server, Config
 from pyventus.events import AsyncIOEventEmitter
 from lagom import Container
 from lagom.integrations.starlette import StarletteIntegration
+from signal import SIGINT, default_int_handler, signal
+from asyncio import Event, CancelledError, create_task
 from src.db.connection import init_DB
 from src.db.repositories import (
     QueryRepository,
@@ -24,8 +26,6 @@ from src.endpoints import (
     UpdateStreamEndpoint,
 )
 from src.settings import HOST, PORT, DATABASE_URL
-from signal import SIGINT, default_int_handler, signal
-from asyncio import Event, CancelledError, create_task
 
 
 def main() -> None:
