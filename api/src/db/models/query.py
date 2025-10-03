@@ -1,4 +1,4 @@
-from .base import BaseWithTimestamp
+from .base import BaseModelWithTimestamp
 from .term import QueryTerm
 from .request import QueryRequest
 from ...utils.constants import EQ, FETCH_IN_PROGRESS
@@ -9,7 +9,8 @@ from io import BytesIO
 from typing import List
 
 
-class Query(BaseWithTimestamp):
+class Query(BaseModelWithTimestamp):
+    __tablename__ = "queries"
     status: Mapped[VARCHAR] = mapped_column(
         VARCHAR(16), nullable=False, default=FETCH_IN_PROGRESS
     )

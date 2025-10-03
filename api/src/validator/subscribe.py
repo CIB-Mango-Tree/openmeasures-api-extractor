@@ -1,4 +1,4 @@
-from pydantic import BaseModel, UUID
+from pydantic import BaseModel, UUID4
 from enum import Enum
 from ..utils.constants import SUBSCRIBE, UNSUBSCRIBE
 
@@ -10,4 +10,4 @@ class Actions(Enum):
 
 class SubscriptionActionValidator(BaseModel):
     action: Actions
-    topic: UUID
+    topic: UUID4

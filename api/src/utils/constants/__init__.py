@@ -1,5 +1,6 @@
 from .status import (
     FETCH_IN_PROGRESS,
+    FETCH_UPDATE_PROGRESS,
     FETCH_INCOMPLETE,
     FETCH_CONTINUE,
     CLEAN_IN_PROGRESS,
@@ -65,6 +66,7 @@ from .subscribe import SUBSCRIBE, UNSUBSCRIBE
 
 __all__ = [
     "FETCH_IN_PROGRESS",
+    "FETCH_UPDATE_PROGRESS",
     "FETCH_INCOMPLETE",
     "FETCH_CONTINUE",
     "CLEAN_IN_PROGRESS",

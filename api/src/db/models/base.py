@@ -1,14 +1,21 @@
 from sqlalchemy import UUID, DateTime
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.ext.declarative import declarative_base
 from uuid import uuid4
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from datetime import datetime
 
-
-class Base(DeclarativeBase):
-    id: Mapped[UUID] = mapped_column(UUID, primary_key=True, default=uuid4())
+Base = declarative_base()
 
 
-class BaseWithTimestamp(Base):
+class BaseModel(Base):
+    __abstract__ = True
+    id: Mapped[UUID] = mapped_column(
+        UUID, primary_key=True, nullable=False, default=uuid4()
+    )
+
+
+class BaseModelWithTimestamp(BaseModel):
+    __abstract__ = True
     created_at: Mapped[DateTime] = mapped_column(
         DateTime, nullable=False, default=datetime.now()
     )

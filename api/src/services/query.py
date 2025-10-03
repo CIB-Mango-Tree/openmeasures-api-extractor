@@ -1,7 +1,7 @@
 from ..settings import API_URL
 from ..db.models import Query, QueryTerm, QueryRequest
 from ..db.repositories import (
-    QueryRespository,
+    QueryRepository,
     QueryTermRepository,
     QueryRequestRepository,
     QueryLimitRepository,
@@ -38,7 +38,7 @@ from typing import List
 
 
 class QueryService:
-    _query_repo: QueryRespository
+    _query_repo: QueryRepository
     _query_term_repo: QueryTermRepository
     _query_request_repo: QueryRequestRepository
     _query_limit_repo: QueryLimitRepository
@@ -46,7 +46,7 @@ class QueryService:
 
     def __init__(
         self,
-        query_repo: QueryRespository,
+        query_repo: QueryRepository,
         query_term_repo: QueryTermRepository,
         query_request_repo: QueryRequestRepository,
         query_limit_repo: QueryLimitRepository,

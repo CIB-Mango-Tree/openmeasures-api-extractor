@@ -1,11 +1,12 @@
-from .base import Base
+from .base import BaseModel
 from sqlalchemy import VARCHAR, TEXT, UUID, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
 
-class QueryTerm(Base):
+class QueryTerm(BaseModel):
+    __tablename__ = "terms"
     query_id: Mapped[UUID] = mapped_column(
-        ForeignKey("query.id"), nullable=False)
+        ForeignKey("queries.id"), nullable=False)
     modifier: Mapped[VARCHAR] = mapped_column(
         VARCHAR(8), nullable=False, default="EQUAL"
     )
