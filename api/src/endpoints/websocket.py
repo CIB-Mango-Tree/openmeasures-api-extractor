@@ -52,7 +52,7 @@ class UpdateStreamEndpoint(WebSocketEndpoint):
                     {
                         "event": "SUBSCRIBE:SUCCESS",
                         "data": {
-                            "message": f"this connection has been subscribed to topic: {validator_data.topic}"
+                            "message": f"this connection has been subscribed to topic: {topic_str}"
                         },
                     }
                 )
@@ -67,7 +67,7 @@ class UpdateStreamEndpoint(WebSocketEndpoint):
                     {
                         "event": "UNSUBSCRIBE:SUCCESS",
                         "data": {
-                            "message": f"this connection has been unsubscribed from topic: {validator_data.topic}"
+                            "message": f"this connection has been unsubscribed from topic: {topic_str}"
                         },
                     }
                 )
