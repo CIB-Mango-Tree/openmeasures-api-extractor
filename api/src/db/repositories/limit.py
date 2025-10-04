@@ -1,20 +1,20 @@
 from ..models import QueryLimit
 from sqlalchemy import select, update as sql_update, delete as sql_delete
 from sqlalchemy.orm import Session
-from typing import Dict, Any
+from typing import Any
 
 
 class QueryLimitRepository:
-    _db: Session = None
+    _db: Session
 
     def __init__(self, db: Session) -> None:
         self._db = db
 
-    def find(self) -> QueryLimit:
+    def find(self) -> QueryLimit | None:
         return self._db.scalars(select(QueryLimit)).first()
 
     def create(self, model: QueryLimit) -> None:
-        limit: QueryLimit = self.find()
+        limit = self.find()
 
         if limit is not None:
             self.update(model)
@@ -24,7 +24,7 @@ class QueryLimitRepository:
         self._db.commit()
 
     def update(self, model: QueryLimit) -> None:
-        data: Dict[str, Any] = {}
+        data: dict[str, Any] = {}
 
         for column in model.__table__.columns():
             if hasattr(model, column):

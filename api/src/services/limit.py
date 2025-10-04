@@ -1,6 +1,6 @@
 from ..db.models import QueryLimit
 from ..db.repositories import QueryLimitRepository
-from ..validator import CreateQueryValidator, UpdateQueryValidator
+from ..validator import CreateLimitValidator, UpdateLimitValidator
 
 
 class QueryLimitService:
@@ -12,7 +12,7 @@ class QueryLimitService:
     def get(self) -> QueryLimit:
         return self._query_limit_repo.find()
 
-    def create(self, data: CreateQueryValidator) -> QueryLimit:
+    def create(self, data: CreateLimitValidator) -> QueryLimit:
         limit = QueryLimit(
             count=data.count,
             previous_request_date=data.previous_request_date,
@@ -23,8 +23,11 @@ class QueryLimitService:
 
         return limit
 
-    def update(self, data: UpdateQueryValidator) -> QueryLimit:
+    def update(self, data: UpdateLimitValidator) -> QueryLimit | None:
         limit = self._query_limit_repo.find()
+
+        if limit is None:
+            return None
 
         if data.count is not None and limit.count != data.count:
             limit.count = data.count

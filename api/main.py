@@ -27,7 +27,7 @@ from src.settings import HOST, PORT, DATABASE_URL
 
 
 def main() -> None:
-    db = init_DB(DATABASE_URL)()
+    db = init_DB(DATABASE_URL)
     emitter = AsyncIOEventEmitter()
     query_repo = QueryRepository(db)
     query_term_repo = QueryTermRepository(db)
@@ -58,8 +58,7 @@ def main() -> None:
             "/api/queries/{id:uuid}/download/{format:str}", endpoint=QueryExportEndpoint
         ),
         query_limit_router.route("/api/limit", endpoint=QueryLimitEndpoint),
-        websocket_router.ws_route(
-            "/api/ws/updates", endpoint=UpdateStreamEndpoint),
+        websocket_router.ws_route("/api/ws/updates", endpoint=UpdateStreamEndpoint),
     ]
     app = Starlette(debug=True, routes=routes)
 

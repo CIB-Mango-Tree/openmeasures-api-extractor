@@ -1,14 +1,11 @@
-from typing import Dict, List
-
-
 class TopicStore:
-    _topics = Dict[str, bool]
+    _topics: dict[str, bool]
 
     def __init__(self) -> None:
         self._topics = {}
 
-    def get(self) -> List[str]:
-        return self._topics.keys()
+    def get(self) -> list[str]:
+        return list(self._topics.keys())
 
     def set(self, topic: str) -> None:
         self._topics[topic] = True

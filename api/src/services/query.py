@@ -1,4 +1,9 @@
-from ..settings import API_URL
+from pandas import DataFrame
+from requests import get
+from pyventus.events import EventEmitter, EventLinker
+from asyncio import create_task
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from ..db.models import Query, QueryTerm, QueryRequest
 from ..db.repositories import (
     QueryRepository,
@@ -30,11 +35,7 @@ from ..utils.constants import (
     BLUESKY_COLUMNS_TO_KEEP,
     TRUTH_COLUMNS_TO_KEEP,
 )
-from requests import get
-from pyventus.events import AsyncIOEventEmitter, EventLinker
-from asyncio import create_task
-from datetime import datetime
-from typing import List
+from ..settings import API_URL
 
 
 class QueryService:
@@ -42,7 +43,7 @@ class QueryService:
     _query_term_repo: QueryTermRepository
     _query_request_repo: QueryRequestRepository
     _query_limit_repo: QueryLimitRepository
-    _emitter: AsyncIOEventEmitter
+    _emitter: EventEmitter
 
     def __init__(
         self,
@@ -50,7 +51,7 @@ class QueryService:
         query_term_repo: QueryTermRepository,
         query_request_repo: QueryRequestRepository,
         query_limit_repo: QueryLimitRepository,
-        emitter: AsyncIOEventEmitter,
+        emitter: EventEmitter,
     ) -> None:
         self._emitter = emitter
         self._query_repo = query_repo
@@ -63,25 +64,33 @@ class QueryService:
             query.status = FETCH_IN_PROGRESS
 
             self._query_repo.update(query)
-            self._emitter.emit(FETCH_UPDATE_PROGRESS,
-                               payload=Event(data=query))
+            self._emitter.emit(FETCH_UPDATE_PROGRESS, payload=Event(data=query))
 
         if query.status == FETCH_INCOMPLETE:
             return
 
         limit = self._query_limit_repo.find()
+
+        if limit is None:
+            return
+
         params = {
             "site": query.platform,
             "term": query.term,
-            "since": query.current_timestamp
+            "since": query.current_timestamp.replace(
+                tzinfo=(ZoneInfo(query.timezone))
+            ).strftime("%Y-%m-%dT%H:%M:%S.%f")
             if query.current_timestamp is not None
-            else query.start_date,
-            "until": query.end_date,
+            else query.start_date.replace(tzinfo=(ZoneInfo(query.timezone))).strftime(
+                "%Y-%m-%dT%H:%M:%S.%f"
+            ),
+            "until": query.end_date.replace(tzinfo=(ZoneInfo(query.timezone))).strftime(
+                "%Y-%m-%dT%H:%M:%S.%f"
+            ),
             "limit": 10000,
             "querytype": "boolean_content",
         }
-        query_range = (query.end_date -
-                       query.start_date).total_seconds() / 3600
+        query_range = (query.end_date - query.start_date).total_seconds() / 3600
 
         while True:
             try:
@@ -107,7 +116,7 @@ class QueryService:
 
                 query.set_updated_at()
 
-                if not hits:
+                if not hits and query.current_timestamp is None:
                     query.percentage = 1.0
                     query.status = QUERY_COMPLETE
 
@@ -167,7 +176,7 @@ class QueryService:
                 fetch_range = (
                     datetime.fromisoformat(last_created_at) - query.start_date
                 ).total_seconds() / 3600
-                query.percentage = (fetch_range / query_range) * 100
+                query.percentage = fetch_range / query_range
                 query.current_timestamp = last_created_at
 
                 if hit_length == 10000 and query.rows_fetched == 10000:
@@ -187,8 +196,7 @@ class QueryService:
                 params["since"] = last_created_at
 
                 self._query_repo.update(query)
-                self._emitter.emit(FETCH_UPDATE_PROGRESS,
-                                   payload=Event(data=query))
+                self._emitter.emit(FETCH_UPDATE_PROGRESS, payload=Event(data=query))
 
             except Exception as e:
                 print(f"Error occurred: {e}")
@@ -239,7 +247,7 @@ class QueryService:
         if query.status == PARSE_INCOMPLETE:
             return
 
-        data_frame = query.from_requests_to_dataframe()
+        data_frame: DataFrame = query.from_requests_to_dataframe()
 
         if query.platform == "bluesky":
             data_frame = data_frame[BLUESKY_COLUMNS_TO_KEEP]
@@ -247,15 +255,13 @@ class QueryService:
         if query.platform == "truth_social":
             data_frame = data_frame[TRUTH_COLUMNS_TO_KEEP]
 
-        data_frame.columns = data_frame.columns.str.replace(
-            "_source.", "", regex=False)
+        data_frame.columns = data_frame.columns.str.replace("_source.", "", regex=False)
         query.status = QUERY_COMPLETE
 
         query.from_dataframe_to_processed_data(data_frame)
         self._query_repo.update(query)
         self._emitter.emit(
-            QUERY_COMPLETE, payload=Event(
-                data=query, message="query is now complete")
+            QUERY_COMPLETE, payload=Event(data=query, message="query is now complete")
         )
 
     def process_query(self, query: Query) -> None:
@@ -271,22 +277,22 @@ class QueryService:
 
         task = create_task(func())
 
-        @EventLinker.once(f"CANCEL:{query.id}", force_async=True)
+        @EventLinker.once(f"CANCEL:{str(query.id)}", force_async=True)
         def handle_task_cancel() -> None:
             task.cancel()
 
-    def get(self, imcomplete_only: bool = False) -> List[Query]:
+    def get(self, imcomplete_only: bool = False) -> list[Query]:
         return self._query_repo.find_all(imcomplete_only)
 
-    def get_by_id(self, id: str) -> Query:
+    def get_by_id(self, id: str) -> Query | None:
         return self._query_repo.find_by_id(id)
 
-    def get_by_status(self, status: str) -> List[Query]:
+    def get_by_status(self, status: str) -> list[Query]:
         return self._query_repo.find_by_status(status)
 
     def get_by_platform(
         self, platform: str, imcomplete_only: bool = False
-    ) -> List[Query]:
+    ) -> list[Query]:
         return self._query_repo.find_by_platform(platform, imcomplete_only)
 
     def create(self, data: CreateQueryValidator) -> Query:
@@ -319,7 +325,7 @@ class QueryService:
 
         return query
 
-    def update(self, id: str, data: UpdateQueryValidator) -> Query:
+    def update(self, id: str, data: UpdateQueryValidator) -> Query | None:
         query = self._query_repo.find_by_id(id)
 
         if query is None:
@@ -335,21 +341,30 @@ class QueryService:
             query.status = PARSE_IN_PROGRESS
 
         self._query_repo.update(query)
-        self._emitter.emit(f"CANCEL:{query.id}")
+        self._emitter.emit(f"CANCEL:{str(query.id)}")
         self.process_query(query)
 
         return query
 
     def delete(self, data: ParamValidator) -> None:
-        if not self._query_repo.exists(data.id):
+        id_str = str(data.id)
+
+        if not self._query_repo.exists(id_str):
             return
 
-        self._emitter.emit(f"CANCEL:{data.id}")
-        self._query_repo.delete(data.id)
+        self._emitter.emit(f"CANCEL:{id_str}")
+        self._query_repo.delete(id_str)
 
     def batch_delete(self, data: DeleteQueriesValidator) -> None:
-        for id in data.ids:
-            if self._query_repo.exists(id):
-                self._emitter.emit(f"CANCEL:{id}")
+        ids: list[str] = []
 
-        self._query_repo.batch_delete(data.ids)
+        for id in data.ids:
+            id_str = str(id)
+
+            if not self._query_repo.exists(id_str):
+                continue
+
+            self._emitter.emit(f"CANCEL:{id_str}")
+            ids.append(id_str)
+
+        self._query_repo.batch_delete(ids)

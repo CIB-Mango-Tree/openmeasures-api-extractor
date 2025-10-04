@@ -1,17 +1,18 @@
-from sqlalchemy import delete as sql_delete, select
+from sqlalchemy import delete as sql_delete, exists as sql_exists, select
 from sqlalchemy.orm import Session
-from ..models.base import BaseModel, BaseModelWithTimestamp
-from typing import TypeVar
+from ..models.base import BaseModel
+from typing import TypeVar, Any, cast
 
-ModelType = TypeVar("ModelType", BaseModel, BaseModelWithTimestamp)
+ModelType = TypeVar("ModelType", bound=BaseModel)
 
 
 class BaseRepository[ModelType]:
-    _model = ModelType
-    _db: Session = None
+    _model: type[ModelType]
+    _db: Session
 
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, model: type[ModelType]) -> None:
         self._db = db
+        self._model = model
 
     def create(self, model: ModelType) -> None:
         self._db.add(model)
@@ -22,13 +23,12 @@ class BaseRepository[ModelType]:
         self._db.commit()
 
     def delete(self, id: str) -> None:
-        self._db.execute(sql_delete(self._model).where(self._model.id == id))
+        model = cast(Any, self._model)
+
+        self._db.execute(sql_delete(model).where(model.id == id))
         self._db.commit()
 
     def exists(self, id: str) -> bool:
-        return (
-            self._db.execute(
-                select(self._model).where(self._model.id == id).exists()
-            ).scalar()
-            is None
-        )
+        model = cast(Any, self._model)
+
+        return self._db.scalar(select(sql_exists(model).where(model.id == id))) is None

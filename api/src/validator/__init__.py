@@ -3,6 +3,7 @@ from .term import TermValidator
 from .param import ParamValidator
 from .export import ExportParamValidator
 from .subscribe import SubscriptionActionValidator
+from .limit import CreateLimitValidator, UpdateLimitValidator
 
 __all__ = [
     "CreateQueryValidator",
@@ -12,4 +13,6 @@ __all__ = [
     "ParamValidator",
     "ExportParamValidator",
     "SubscriptionActionValidator",
+    "CreateLimitValidator",
+    "UpdateLimitValidator",
 ]

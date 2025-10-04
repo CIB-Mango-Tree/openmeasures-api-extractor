@@ -1,21 +1,21 @@
-from sqlalchemy import INTEGER, DateTime, FLOAT, CheckConstraint
+from sqlalchemy import DateTime, Integer, Float, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from .base import Base
 from datetime import datetime, timedelta
 
 
 class QueryLimit(Base):
-    __tablename__ = "limit"
-    id: Mapped[INTEGER] = mapped_column(
-        INTEGER, primary_key=True, nullable=False, default=1
+    __tablename__: str = "limit"
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, nullable=False, default=1
     )
-    count: Mapped[INTEGER] = mapped_column(INTEGER, nullable=False, default=39)
-    percentage: Mapped[FLOAT] = mapped_column(FLOAT, nullable=False, default=0)
-    previous_request_date: Mapped[DateTime] = mapped_column(
-        DateTime, nullable=True)
-    limit_refresh_date: Mapped[DateTime] = mapped_column(
-        DateTime, nullable=True)
-    __table_args__ = (CheckConstraint(id == 1, name="singleton_check"),)
+    count: Mapped[int] = mapped_column(Integer, nullable=False, default=39)
+    percentage: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    previous_request_date: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    limit_refresh_date: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    __table_args__: tuple[CheckConstraint] = (
+        CheckConstraint(id == 1, name="singleton_check"),
+    )
 
     def decrement(self) -> None:
         if self.count == 0:

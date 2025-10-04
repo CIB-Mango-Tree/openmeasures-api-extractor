@@ -11,5 +11,5 @@ class WebSocketConnection:
     def __init__(self, socket: WebSocket) -> None:
         self.id = str(uuid4())
         self.topics = TopicStore()
-        socket.state["id"] = self.id
+        socket.state.id = self.id
         self.socket = socket

@@ -8,4 +8,4 @@ def init_DB(url: str) -> Session:
 
     Base.metadata.create_all(engine)
 
-    return sessionmaker(engine)
+    return sessionmaker(engine)()

@@ -1,34 +1,38 @@
+from sqlalchemy import DateTime, String, Integer, Float, LargeBinary
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from pandas import DataFrame, json_normalize, read_feather
+from io import BytesIO
+from datetime import datetime
 from .base import BaseModelWithTimestamp
 from .term import QueryTerm
 from .request import QueryRequest
 from ...utils.constants import EQ, FETCH_IN_PROGRESS
-from sqlalchemy import DateTime, VARCHAR, INTEGER, FLOAT, VARBINARY
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from pandas import DataFrame, json_normalize, read_feather
-from io import BytesIO
-from typing import List
 
 
 class Query(BaseModelWithTimestamp):
-    __tablename__ = "queries"
-    status: Mapped[VARCHAR] = mapped_column(
-        VARCHAR(16), nullable=False, default=FETCH_IN_PROGRESS
+    __tablename__: str = "queries"
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default=FETCH_IN_PROGRESS
     )
-    timezone: Mapped[VARCHAR] = mapped_column(VARCHAR(64), nullable=True)
-    start_date: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
-    end_date: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
-    platform: Mapped[VARCHAR] = mapped_column(VARCHAR(64), nullable=False)
-    current_timestamp: Mapped[DateTime] = mapped_column(
-        DateTime, nullable=True)
-    rows_fetched: Mapped[INTEGER] = mapped_column(
-        INTEGER, nullable=False, default=0)
-    percentage: Mapped[FLOAT] = mapped_column(FLOAT, nullable=False, default=0)
-    processed_data: Mapped[VARBINARY] = mapped_column(VARBINARY, nullable=True)
-    terms: Mapped[List[QueryTerm]] = relationship(cascade="all, delete")
-    requests: Mapped[List[QueryRequest]] = relationship(cascade="all, delete")
+    timezone: Mapped[str] = mapped_column(String(64), nullable=True)
+    start_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    end_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    platform: Mapped[str] = mapped_column(String(64), nullable=False)
+    current_timestamp: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    rows_fetched: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    percentage: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    processed_data: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    terms: Mapped[list[QueryTerm]] = relationship(cascade="all, delete")
+    requests: Mapped[list[QueryRequest]] = relationship(cascade="all, delete")
 
     def from_requests_to_dataframe(self) -> DataFrame:
-        return json_normalize([request.cleaned_data for request in self.requests])
+        return json_normalize(
+            [
+                request.cleaned_data
+                for request in self.requests
+                if request.cleaned_data is not None
+            ]
+        )
 
     def from_dataframe_to_processed_data(self, data_frame: DataFrame) -> None:
         buffer = BytesIO()
@@ -36,7 +40,10 @@ class Query(BaseModelWithTimestamp):
         data_frame.to_feather(buffer)
         self.processed_data = buffer.getvalue()
 
-    def from_processed_data_to_dataframe(self) -> DataFrame:
+    def from_processed_data_to_dataframe(self) -> DataFrame | None:
+        if self.processed_data is None:
+            return None
+
         buffer = BytesIO()
         buffer.write(self.processed_data)
 
@@ -47,8 +54,7 @@ class Query(BaseModelWithTimestamp):
         if len(self.terms) == 0:
             return ""
 
-        base = next(
-            (term.term for term in self.terms if term.modifier == EQ), None)
+        base = next((term.term for term in self.terms if term.modifier == EQ), None)
 
         if base is None:
             return ""

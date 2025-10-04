@@ -3,6 +3,7 @@ from ..validator import ExportParamValidator
 from ..utils.export import FileExport
 from ..utils.constants import EXCEL, JSON, CSV
 from io import BytesIO
+from sys import getsizeof
 
 
 class QueryExportService:
@@ -11,20 +12,23 @@ class QueryExportService:
     def __init__(self, query_repo: QueryRepository) -> None:
         self._query_repo = query_repo
 
-    def export(self, data: ExportParamValidator) -> FileExport:
-        query = self._query_repo.find_by_id(data.id)
+    def export(self, data: ExportParamValidator) -> FileExport | None:
+        query = self._query_repo.find_by_id(str(data.id))
 
         if query is None:
             return None
 
-        if len(query.processed_data) == 0:
+        if getsizeof(query.processed_data) == 0:
             return None
 
         data_frame = query.from_processed_data_to_dataframe()
+
+        if data_frame is None:
+            return None
+
         buffer = BytesIO()
         filename = (
-            f"{query.platform}_{query.created_at.strftime('%Y%m%d')}_{
-                query.percentage}"
+            f"{query.platform}_{query.created_at.strftime('%Y%m%d')}_{query.percentage}"
         )
 
         if data.format.value == EXCEL:
