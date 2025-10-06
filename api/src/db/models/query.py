@@ -2,6 +2,7 @@ from sqlalchemy import DateTime, String, Integer, Float, LargeBinary
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from pandas import DataFrame, json_normalize, read_feather
 from io import BytesIO
+from sys import getsizeof
 from datetime import datetime
 from .base import BaseModelWithTimestamp
 from .term import QueryTerm
@@ -44,6 +45,9 @@ class Query(BaseModelWithTimestamp):
         if self.processed_data is None:
             return None
 
+        if getsizeof(self.processed_data) == 0:
+            return None
+
         buffer = BytesIO()
         buffer.write(self.processed_data)
 
@@ -62,7 +66,7 @@ class Query(BaseModelWithTimestamp):
         output = base
 
         for term in self.terms:
-            if term.modifier != EQ:
+            if term.modifier is not EQ:
                 output += f" {term.modifier} {term.term}"
 
         return output

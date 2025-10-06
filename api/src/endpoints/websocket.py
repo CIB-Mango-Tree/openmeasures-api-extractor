@@ -14,6 +14,7 @@ class UpdateStreamEndpoint(WebSocketEndpoint):
     ) -> None:
         connection = websocket_service.create(websocket)
 
+        await connection.socket.accept()
         await connection.socket.send_json({"message": "Connected!!!"})
 
     async def on_receive(
@@ -97,5 +98,4 @@ class UpdateStreamEndpoint(WebSocketEndpoint):
         if connection is None:
             return
 
-        await connection.socket.send_json({"message": "Closing connection..."})
         websocket_service.delete(connection.id)
