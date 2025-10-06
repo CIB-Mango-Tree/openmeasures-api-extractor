@@ -4,6 +4,7 @@ from pyventus.events import AsyncIOEventEmitter
 from lagom import Container
 from lagom.integrations.starlette import StarletteIntegration
 from src.db.connection import init_DB
+from src.db.models import QueryLimit
 from src.db.repositories import (
     QueryRepository,
     QueryTermRepository,
@@ -61,8 +62,14 @@ def main() -> None:
         websocket_router.ws_route("/api/ws/updates", endpoint=UpdateStreamEndpoint),
     ]
     app = Starlette(debug=True, routes=routes)
+    limit = query_limit_repo.find()
 
-    run(app, host=HOST, port=PORT)
+    if limit is None:
+        limit = QueryLimit()
+
+        query_limit_repo.create(limit)
+
+    run(app, host=HOST, port=PORT, use_colors=True, log_config=None)
 
 
 if __name__ == "__main__":
