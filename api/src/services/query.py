@@ -1,7 +1,9 @@
+from typing import Any
 from pandas import DataFrame
 from requests import get
 from pyventus.events import EventEmitter, EventLinker
 from asyncio import create_task
+from uuid import UUID
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from ..db.models import Query, QueryTerm, QueryRequest
@@ -35,6 +37,7 @@ from ..utils.constants import (
     BLUESKY_COLUMNS_TO_KEEP,
     TRUTH_COLUMNS_TO_KEEP,
 )
+from ..log import logger
 from ..settings import API_URL
 
 
@@ -133,7 +136,7 @@ class QueryService:
                 hit_length = len(hits)
                 query.rows_fetched += hit_length
                 request = QueryRequest(
-                    row_count=hit_length, data=hits, query_ID=query.id
+                    row_count=hit_length, data=hits, query_id=query.id
                 )
 
                 limit.decrement()
@@ -210,23 +213,28 @@ class QueryService:
         if query.status == CLEAN_INCOMPLETE:
             return
 
-        for hit in query.requests:
-            source = hit.data["_source"]
+        for request in query.requests:
+            cleaned_data = []
 
-            if source.get("embed") and source["embed"].get("external"):
-                if source["embed"]["external"].get("description") is not None:
-                    source["embed"]["external"]["description"] = "␣"
-                    clean_text(source["embed"]["external"]["description"])
+            for hit in request.data:
+                source = hit["_source"]
 
-                if source["embed"]["external"].get("title") is not None:
-                    source["embed"]["external"]["title"] = "␣"
-                    clean_text(source["embed"]["external"]["title"])
+                if source.get("embed") and source["embed"].get("external"):
+                    if source["embed"]["external"].get("description") is not None:
+                        source["embed"]["external"]["description"] = "␣"
+                        clean_text(source["embed"]["external"]["description"])
 
-            if source.get("text") is not None:
-                source["text"] = clean_text(source["text"])
+                    if source["embed"]["external"].get("title") is not None:
+                        source["embed"]["external"]["title"] = "␣"
+                        clean_text(source["embed"]["external"]["title"])
 
-            hit.cleaned_data = source
-            self._query_request_repo.update(hit)
+                if source.get("text") is not None:
+                    source["text"] = clean_text(source["text"])
+
+                cleaned_data.append(source)
+
+            request.cleaned_data = cleaned_data
+            self._query_request_repo.update(request)
 
         query.status = PARSE_IN_PROGRESS
 
@@ -277,14 +285,14 @@ class QueryService:
 
         task = create_task(func())
 
-        @EventLinker.once(f"CANCEL:{str(query.id)}", force_async=True)
+        @EventLinker.once(f"CANCEL:{str(query.id)}")
         def handle_task_cancel() -> None:
             task.cancel()
 
     def get(self, imcomplete_only: bool = False) -> list[Query]:
         return self._query_repo.find_all(imcomplete_only)
 
-    def get_by_id(self, id: str) -> Query | None:
+    def get_by_id(self, id: UUID) -> Query | None:
         return self._query_repo.find_by_id(id)
 
     def get_by_status(self, status: str) -> list[Query]:
@@ -297,15 +305,16 @@ class QueryService:
 
     def create(self, data: CreateQueryValidator) -> Query:
         query = Query(
-            start_date=data.start_data, end_date=data.end_date, platform=data.platform
+            start_date=data.start_date, end_date=data.end_date, platform=data.platform
         )
 
         if data.timezone is not None:
             query.timezone = data.timezone
 
         self._query_repo.create(query)
+        logger.debug(query)
 
-        terms = [QueryTerm(query_id=query, term=data.term)]
+        terms = [QueryTerm(query_id=query.id, term=data.term)]
 
         if data.term_modifiers is not None and len(data.term_modifiers) > 0:
             terms.extend(
@@ -320,12 +329,11 @@ class QueryService:
             )
 
         self._query_term_repo.batch_create(terms)
-        query.terms.extend(terms)
         self.process_query(query)
 
         return query
 
-    def update(self, id: str, data: UpdateQueryValidator) -> Query | None:
+    def update(self, id: UUID, data: UpdateQueryValidator) -> Query | None:
         query = self._query_repo.find_by_id(id)
 
         if query is None:
@@ -340,31 +348,27 @@ class QueryService:
         if query.status == PARSE_INCOMPLETE and data.status == PARSE_CONTINUE:
             query.status = PARSE_IN_PROGRESS
 
-        self._query_repo.update(query)
         self._emitter.emit(f"CANCEL:{str(query.id)}")
+        self._query_repo.update(query)
         self.process_query(query)
 
         return query
 
     def delete(self, data: ParamValidator) -> None:
-        id_str = str(data.id)
-
-        if not self._query_repo.exists(id_str):
+        if not self._query_repo.exists(data.id):
             return
 
-        self._emitter.emit(f"CANCEL:{id_str}")
-        self._query_repo.delete(id_str)
+        self._emitter.emit(f"CANCEL:{str(data.id)}")
+        self._query_repo.delete(data.id)
 
     def batch_delete(self, data: DeleteQueriesValidator) -> None:
-        ids: list[str] = []
+        ids: list[UUID] = []
 
         for id in data.ids:
-            id_str = str(id)
-
-            if not self._query_repo.exists(id_str):
+            if not self._query_repo.exists(id):
                 continue
 
-            self._emitter.emit(f"CANCEL:{id_str}")
-            ids.append(id_str)
+            self._emitter.emit(f"CANCEL:{str(id)}")
+            ids.append(id)
 
         self._query_repo.batch_delete(ids)

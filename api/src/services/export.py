@@ -13,7 +13,7 @@ class QueryExportService:
         self._query_repo = query_repo
 
     def export(self, data: ExportParamValidator) -> FileExport | None:
-        query = self._query_repo.find_by_id(str(data.id))
+        query = self._query_repo.find_by_id(data.id)
 
         if query is None:
             return None

@@ -1,7 +1,7 @@
-from sqlalchemy import UUID, DateTime
+from sqlalchemy import DateTime, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.ext.declarative import declarative_base
-from uuid import uuid4, UUID as UUIDType
+from uuid import uuid4, UUID
 from datetime import datetime
 
 Base = declarative_base()
@@ -9,8 +9,8 @@ Base = declarative_base()
 
 class BaseModel(Base):
     __abstract__: bool = True
-    id: Mapped[UUIDType] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, nullable=False, default=uuid4
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), primary_key=True, nullable=False, default=uuid4
     )
 
 

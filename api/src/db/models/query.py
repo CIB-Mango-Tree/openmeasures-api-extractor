@@ -27,13 +27,13 @@ class Query(BaseModelWithTimestamp):
     requests: Mapped[list[QueryRequest]] = relationship(cascade="all, delete")
 
     def from_requests_to_dataframe(self) -> DataFrame:
-        return json_normalize(
-            [
-                request.cleaned_data
-                for request in self.requests
-                if request.cleaned_data is not None
-            ]
-        )
+        data = []
+
+        for request in self.requests:
+            if request.cleaned_data is not None:
+                data.extend(request.cleaned_data)
+
+        return json_normalize(data)
 
     def from_dataframe_to_processed_data(self, data_frame: DataFrame) -> None:
         buffer = BytesIO()

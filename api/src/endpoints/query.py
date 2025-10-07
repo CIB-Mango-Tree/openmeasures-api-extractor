@@ -35,7 +35,7 @@ class QueriesEndpoint(HTTPEndpoint):
             query = query_service.create(validator_data)
             query_model = QuerySerializer.model_validate(query)
 
-            return OK_response(CREATED, query_model.model_dump())
+            return OK_response(CREATED, query_model.model_dump(mode="json"))
 
         except ValidationError as err:
             return error_response(
@@ -67,7 +67,7 @@ class QueryEndpoint(HTTPEndpoint):
     ) -> JSONResponse:
         try:
             param_validator = ParamValidator.model_validate(request.path_params)
-            query = query_service.get_by_id(str(param_validator.id))
+            query = query_service.get_by_id(param_validator.id)
 
             if query is None:
                 return error_response(
@@ -89,8 +89,7 @@ class QueryEndpoint(HTTPEndpoint):
     ) -> JSONResponse:
         try:
             param_validator = ParamValidator.model_validate(request.path_params)
-            id_str = str(param_validator.id)
-            query = query_service.get_by_id(id_str)
+            query = query_service.get_by_id(param_validator.id)
 
             if query is None:
                 return error_response(
@@ -99,7 +98,7 @@ class QueryEndpoint(HTTPEndpoint):
 
             body = await request.json()
             validator_data = UpdateQueryValidator.model_validate(body)
-            updated_query = query_service.update(id_str, validator_data)
+            updated_query = query_service.update(param_validator.id, validator_data)
             query_model = QuerySerializer.model_validate(updated_query)
 
             return OK_response(OK, query_model.model_dump())
@@ -115,7 +114,7 @@ class QueryEndpoint(HTTPEndpoint):
     ) -> JSONResponse:
         try:
             param_validator = ParamValidator.model_validate(request.path_params)
-            query = query_service.get_by_id(str(param_validator.id))
+            query = query_service.get_by_id(param_validator.id)
 
             if query is None:
                 return error_response(

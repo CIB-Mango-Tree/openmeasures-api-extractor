@@ -2,6 +2,8 @@ from starlette.endpoints import WebSocketEndpoint
 from starlette.websockets import WebSocket
 from pydantic import ValidationError
 from lagom import injectable
+from json import loads
+from ..log import logger
 from ..services import WebSocketService
 from ..validator import SubscriptionActionValidator
 from ..utils.constants import SUBSCRIBE, UNSUBSCRIBE
@@ -9,6 +11,8 @@ from typing import Any
 
 
 class UpdateStreamEndpoint(WebSocketEndpoint):
+    encoding = "json"
+
     async def on_connect(
         self, websocket: WebSocket, websocket_service: WebSocketService = injectable
     ) -> None:
@@ -28,8 +32,10 @@ class UpdateStreamEndpoint(WebSocketEndpoint):
         if connection is None:
             return
 
+        encoded_data = loads(data)
+
         try:
-            validator_data = SubscriptionActionValidator.model_validate(data)
+            validator_data = SubscriptionActionValidator.model_validate(encoded_data)
             topic_str = str(validator_data.topic)
 
             if validator_data.action.value == SUBSCRIBE:
@@ -44,7 +50,9 @@ class UpdateStreamEndpoint(WebSocketEndpoint):
                     )
                     return
 
-                connection = websocekt_service.subscribe(connection.id, topic_str)
+                connection = websocekt_service.subscribe(
+                    connection.id, validator_data.topic
+                )
 
                 if connection is None:
                     return

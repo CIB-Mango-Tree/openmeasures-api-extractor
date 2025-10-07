@@ -1,6 +1,7 @@
 from starlette.websockets import WebSocket
 from pyventus.events import EventLinker
 from asyncio import create_task
+from uuid import UUID
 from ..db.repositories import QueryRepository
 from ..websocket import WebSocketConnection, ConnectionStore
 from ..event import Event
@@ -96,7 +97,7 @@ class WebSocketService:
     def delete(self, id: str) -> None:
         self._store.remove(id)
 
-    def subscribe(self, id: str, topic: str) -> WebSocketConnection | None:
+    def subscribe(self, id: str, topic: UUID) -> WebSocketConnection | None:
         if not self._query_repo.exists(topic):
             return None
 
@@ -105,7 +106,7 @@ class WebSocketService:
         if connection is None:
             return None
 
-        connection.topics.set(topic)
+        connection.topics.set(str(topic))
         self._store.set(connection)
 
         return connection
