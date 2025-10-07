@@ -32,10 +32,8 @@ if not APP_DEBUG:
 
 for logger_name in ["uvicorn", "uvicorn.access", "uvicorn.error"]:
     uvicorn_logger = getLogger(logger_name)
-
     uvicorn_logger.handlers.clear()
+    uvicorn_logger.propagate = True
     uvicorn_logger.setLevel(DEBUG if APP_DEBUG else ERROR)
 
-    uvicorn_logger.propagate = True
-
-logger = getLogger("main")
+logger = getLogger(__name__)

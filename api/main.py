@@ -25,6 +25,7 @@ from src.endpoints import (
     UpdateStreamEndpoint,
 )
 from src.settings import HOST, PORT, DATABASE_URL
+import src.log
 
 
 def main() -> None:
