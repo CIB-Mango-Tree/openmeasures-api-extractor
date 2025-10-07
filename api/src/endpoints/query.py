@@ -20,9 +20,7 @@ class QueriesEndpoint(HTTPEndpoint):
         self, request: Request, query_service: QueryService = injectable
     ) -> JSONResponse:
         queries = query_service.get()
-        query_dump = [
-            QuerySerializer.model_validate(query).model_dump() for query in queries
-        ]
+        query_dump = [QuerySerializer.model_validate(query) for query in queries]
 
         return OK_collection_response(OK, query_dump)
 
@@ -35,7 +33,7 @@ class QueriesEndpoint(HTTPEndpoint):
             query = query_service.create(validator_data)
             query_model = QuerySerializer.model_validate(query)
 
-            return OK_response(CREATED, query_model.model_dump(mode="json"))
+            return OK_response(CREATED, query_model)
 
         except ValidationError as err:
             return error_response(
@@ -76,7 +74,7 @@ class QueryEndpoint(HTTPEndpoint):
 
             query_model = QuerySerializer.model_validate(query)
 
-            return OK_response(OK, query_model.model_dump())
+            return OK_response(OK, query_model)
 
         except ValidationError as err:
             return error_response(
@@ -101,7 +99,7 @@ class QueryEndpoint(HTTPEndpoint):
             updated_query = query_service.update(param_validator.id, validator_data)
             query_model = QuerySerializer.model_validate(updated_query)
 
-            return OK_response(OK, query_model.model_dump())
+            return OK_response(OK, query_model)
 
         except ValidationError as err:
             return error_response(
