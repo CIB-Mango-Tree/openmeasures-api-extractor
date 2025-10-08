@@ -24,14 +24,14 @@ class WebSocketService:
         self._store = ConnectionStore()
         self._query_repo = query_repo
 
-        @EventLinker.on(FETCH_UPDATE_PROGRESS, force_async=True)
+        @EventLinker.on(FETCH_UPDATE_PROGRESS)
         def handle_progress_update(payload: Event) -> None:
             self.send_by_topic(
                 str(payload.data.id),
                 {"event": FETCH_UPDATE_PROGRESS, "data": payload.data},
             )
 
-        @EventLinker.on(FETCH_INCOMPLETE, force_async=True)
+        @EventLinker.on(FETCH_INCOMPLETE)
         def handle_incomplete_fetch(payload: Event):
             self.send_by_topic(
                 str(payload.data.id),
@@ -41,7 +41,7 @@ class WebSocketService:
                 },
             )
 
-        @EventLinker.on(CLEAN_IN_PROGRESS, force_async=True)
+        @EventLinker.on(CLEAN_IN_PROGRESS)
         def handle_in_progress_clean(payload: Event):
             self.send_by_topic(
                 str(payload.data.id),
@@ -51,7 +51,7 @@ class WebSocketService:
                 },
             )
 
-        @EventLinker.on(PARSE_IN_PROGRESS, force_async=True)
+        @EventLinker.on(PARSE_IN_PROGRESS)
         def handle_in_progress_parse(payload: Event):
             self.send_by_topic(
                 str(payload.data.id),
@@ -61,7 +61,7 @@ class WebSocketService:
                 },
             )
 
-        @EventLinker.on(LIMIT_MAXED_OUT, force_async=True)
+        @EventLinker.on(LIMIT_MAXED_OUT)
         def handle_maxed_limit(payload: Event) -> None:
             self.send_by_topic(
                 str(payload.data.id),
@@ -71,7 +71,7 @@ class WebSocketService:
                 },
             )
 
-        @EventLinker.on(QUERY_COMPLETE, force_async=True)
+        @EventLinker.on(QUERY_COMPLETE)
         def handle_query_complete(payload: Event) -> None:
             self.send_by_topic(
                 str(payload.data.id),
