@@ -1,8 +1,7 @@
-from typing import Any
 from pandas import DataFrame
 from requests import get
 from pyventus.events import EventEmitter, EventLinker
-from asyncio import create_task
+from asyncio import create_task, to_thread
 from uuid import UUID
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -77,6 +76,14 @@ class QueryService:
         if limit is None:
             return
 
+        logger.debug(
+            "limit - count: %d last_fetch: %s",
+            limit.count,
+            limit.previous_request_date.isoformat()
+            if limit.previous_request_date is not None
+            else "None",
+        )
+
         params = {
             "site": query.platform,
             "term": query.term,
@@ -94,6 +101,9 @@ class QueryService:
             "querytype": "boolean_content",
         }
         query_range = (query.end_date - query.start_date).total_seconds() / 3600
+
+        logger.debug("request params: %s", params)
+        logger.debug("query range: %s", query_range)
 
         while True:
             try:
@@ -202,7 +212,7 @@ class QueryService:
                 self._emitter.emit(FETCH_UPDATE_PROGRESS, payload=Event(data=query))
 
             except Exception as e:
-                print(f"Error occurred: {e}")
+                logger.error(e)
                 break
 
     def _clean_data(self, query: Query) -> None:
@@ -272,21 +282,50 @@ class QueryService:
             QUERY_COMPLETE, payload=Event(data=query, message="query is now complete")
         )
 
-    def process_query(self, query: Query) -> None:
+    def process_query(self, id: UUID) -> None:
         async def func() -> None:
+            query = self._query_repo.find_by_id(id)
+
+            if query is None:
+                return
+
             if query.status in [FETCH_CONTINUE, FETCH_IN_PROGRESS]:
-                self._fetch_data(query)
+                logger.debug("data fetch for query: %s is starting", query.id)
+                await to_thread(self._fetch_data, query)
+                logger.debug("data fetch for query: %s is complete", query.id)
+
+            query = self._query_repo.find_by_id(id)
+
+            if query is None:
+                return
 
             if query.status in [CLEAN_CONTINUE, CLEAN_IN_PROGRESS]:
-                self._clean_data(query)
+                await to_thread(self._clean_data, query)
+
+            query = self._query_repo.find_by_id(id)
+
+            if query is None:
+                return
 
             if query.status in [PARSE_CONTINUE, PARSE_IN_PROGRESS]:
-                self._parse_data(query)
+                await to_thread(self._parse_data, query)
+
+            logger.debug(
+                "applicable processing tasks for query: %s are complete", query.id
+            )
+            logger.debug(
+                "Query - PLATFORM: %s STATUS: %s PROGRESS: %d ROWS FETCHED: %d",
+                query.platform,
+                query.status,
+                query.percentage,
+                query.rows_fetched,
+            )
 
         task = create_task(func())
 
-        @EventLinker.once(f"CANCEL:{str(query.id)}")
+        @EventLinker.once(f"CANCEL:{str(id)}")
         def handle_task_cancel() -> None:
+            logger.debug("Cancelling processing task for query: %s", str(id))
             task.cancel()
 
     def get(self, imcomplete_only: bool = False) -> list[Query]:
@@ -312,11 +351,10 @@ class QueryService:
             query.timezone = data.timezone
 
         self._query_repo.create(query)
-        logger.debug(query)
 
         terms = [QueryTerm(query_id=query.id, term=data.term)]
 
-        if data.term_modifiers is not None and len(data.term_modifiers) > 0:
+        if len(data.term_modifiers) > 0:
             terms.extend(
                 [
                     QueryTerm(
@@ -329,7 +367,7 @@ class QueryService:
             )
 
         self._query_term_repo.batch_create(terms)
-        self.process_query(query)
+        self.process_query(query.id)
 
         return query
 
@@ -350,7 +388,7 @@ class QueryService:
 
         self._emitter.emit(f"CANCEL:{str(query.id)}")
         self._query_repo.update(query)
-        self.process_query(query)
+        self.process_query(query.id)
 
         return query
 
