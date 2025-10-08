@@ -1,17 +1,22 @@
-from ..models import QueryLimit
 from sqlalchemy import select, update as sql_update, delete as sql_delete
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, scoped_session
+from ..models import QueryLimit
 from typing import Any
 
 
 class QueryLimitRepository:
-    _db: Session
+    _session_factory: scoped_session[Session]
 
-    def __init__(self, db: Session) -> None:
-        self._db = db
+    def __init__(self, factory: scoped_session[Session]) -> None:
+        self._session_factory = factory
+
+    def _get_session(self) -> Session:
+        return self._session_factory()
 
     def find(self) -> QueryLimit | None:
-        return self._db.scalars(select(QueryLimit)).first()
+        session = self._get_session()
+
+        return session.scalars(select(QueryLimit)).first()
 
     def create(self, model: QueryLimit) -> None:
         limit = self.find()
@@ -20,19 +25,24 @@ class QueryLimitRepository:
             self.update(model)
             return
 
-        self._db.add(model)
-        self._db.commit()
+        session = self._get_session()
+
+        session.add(model)
+        session.commit()
 
     def update(self, model: QueryLimit) -> None:
+        session = self._get_session()
         data: dict[str, Any] = {}
 
         for column in model.__table__.columns():
             if hasattr(model, column):
                 data[column] = getattr(model, column)
 
-        self._db.execute(sql_update(QueryLimit).values(data))
-        self._db.commit()
+        session.execute(sql_update(QueryLimit).values(data))
+        session.commit()
 
     def delete(self) -> None:
-        self._db.execute(sql_delete(QueryLimit))
-        self._db.commit()
+        session = self._get_session()
+
+        session.execute(sql_delete(QueryLimit))
+        session.commit()
