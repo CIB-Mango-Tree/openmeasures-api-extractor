@@ -2,6 +2,7 @@ from starlette.endpoints import WebSocketEndpoint
 from starlette.websockets import WebSocket
 from pydantic import ValidationError
 from lagom import injectable
+from asyncio import get_running_loop
 from json import loads
 from ..services import WebSocketService
 from ..validator import SubscriptionActionValidator
@@ -15,8 +16,10 @@ class UpdateStreamEndpoint(WebSocketEndpoint):
     async def on_connect(
         self, websocket: WebSocket, websocket_service: WebSocketService = injectable
     ) -> None:
+        loop = get_running_loop()
         connection = websocket_service.create(websocket)
 
+        websocket_service.set_event_loop(loop)
         await connection.socket.accept()
         await connection.socket.send_json({"message": "Connected!!!"})
 

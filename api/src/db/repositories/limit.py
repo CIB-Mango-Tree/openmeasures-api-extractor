@@ -34,9 +34,11 @@ class QueryLimitRepository:
         session = self._get_session()
         data: dict[str, Any] = {}
 
-        for column in model.__table__.columns():
-            if hasattr(model, column):
-                data[column] = getattr(model, column)
+        for column in model.__table__.columns:
+            name = column.name
+
+            if hasattr(model, name):
+                data[name] = getattr(model, name)
 
         session.execute(sql_update(QueryLimit).values(data))
         session.commit()

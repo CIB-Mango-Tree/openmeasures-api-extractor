@@ -58,15 +58,15 @@ class Query(BaseModelWithTimestamp):
         if len(self.terms) == 0:
             return ""
 
-        base = next((term.term for term in self.terms if term.modifier == EQ), None)
+        base = next((term.term for term in self.terms if term.modifier == EQ), "")
 
-        if base is None:
-            return ""
+        if len(base) == 0:
+            return base
 
         output = base
 
         for term in self.terms:
-            if term.modifier is not EQ:
+            if term.modifier != EQ:
                 output += f" {term.modifier} {term.term}"
 
         return output

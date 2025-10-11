@@ -13,4 +13,4 @@ def init_DB(url: str) -> scoped_session[Session]:
 
     Base.metadata.create_all(engine)
 
-    return scoped_session(sessionmaker(engine))
+    return scoped_session(sessionmaker(engine, autoflush=False))

@@ -18,6 +18,7 @@ from ..validator import (
     DeleteQueriesValidator,
     ParamValidator,
 )
+from ..serializers import QuerySerializer
 from ..event import Event
 from ..utils.sanitize import clean_text
 from ..utils.constants import (
@@ -66,7 +67,12 @@ class QueryService:
             query.status = FETCH_IN_PROGRESS
 
             self._query_repo.update(query)
-            self._emitter.emit(FETCH_UPDATE_PROGRESS, payload=Event(data=query))
+            self._emitter.emit(
+                FETCH_UPDATE_PROGRESS,
+                payload=Event(
+                    data=QuerySerializer.model_validate(query).model_dump(mode="json")
+                ),
+            )
 
         if query.status == FETCH_INCOMPLETE:
             return
@@ -83,7 +89,17 @@ class QueryService:
             if limit.previous_request_date is not None
             else "None",
         )
+        logger.debug(
+            "query info - PLATFORM: %s STATUS: %s TERM: %s",
+            query.platform,
+            query.status,
+            query.term,
+        )
 
+        localized_start_date = query.start_date.replace(
+            tzinfo=(ZoneInfo(query.timezone))
+        )
+        localized_end_date = query.end_date.replace(tzinfo=(ZoneInfo(query.timezone)))
         params = {
             "site": query.platform,
             "term": query.term,
@@ -91,19 +107,14 @@ class QueryService:
                 tzinfo=(ZoneInfo(query.timezone))
             ).strftime("%Y-%m-%dT%H:%M:%S.%f")
             if query.current_timestamp is not None
-            else query.start_date.replace(tzinfo=(ZoneInfo(query.timezone))).strftime(
-                "%Y-%m-%dT%H:%M:%S.%f"
-            ),
-            "until": query.end_date.replace(tzinfo=(ZoneInfo(query.timezone))).strftime(
-                "%Y-%m-%dT%H:%M:%S.%f"
-            ),
+            else localized_start_date.strftime("%Y-%m-%dT%H:%M:%S.%f"),
+            "until": localized_end_date.strftime("%Y-%m-%dT%H:%M:%S.%f"),
             "limit": 10000,
             "querytype": "boolean_content",
         }
-        query_range = (query.end_date - query.start_date).total_seconds() / 3600
+        query_range = (localized_end_date - localized_start_date).total_seconds() / 3600
 
         logger.debug("request params: %s", params)
-        logger.debug("query range: %s", query_range)
 
         while True:
             try:
@@ -114,7 +125,9 @@ class QueryService:
                     self._emitter.emit(
                         LIMIT_MAXED_OUT,
                         payload=Event(
-                            data=query,
+                            data=QuerySerializer.model_validate(query).model_dump(
+                                mode="json"
+                            ),
                             message="query limit has been maxed out until limit refresh",
                         ),
                     )
@@ -137,23 +150,31 @@ class QueryService:
                     self._emitter.emit(
                         QUERY_COMPLETE,
                         payload=Event(
-                            data=query,
+                            data=QuerySerializer.model_validate(query).model_dump(
+                                mode="json"
+                            ),
                             message="query is now complete",
                         ),
                     )
                     break
 
                 hit_length = len(hits)
-                query.rows_fetched += hit_length
                 request = QueryRequest(
                     row_count=hit_length, data=hits, query_id=query.id
                 )
 
                 limit.decrement()
                 limit.set_timestamps()
+                limit.set_percentage()
                 self._query_request_repo.create(request)
                 self._query_limit_repo.update(limit)
-                query.requests.append(request)
+
+                query = self._query_repo.find_by_id(query.id)
+
+                if query is None:
+                    break
+
+                query.rows_fetched += hit_length
 
                 if hit_length < 10000:
                     query.percentage = 1.0
@@ -163,7 +184,9 @@ class QueryService:
                     self._emitter.emit(
                         CLEAN_IN_PROGRESS,
                         payload=Event(
-                            data=query,
+                            data=QuerySerializer.model_validate(query).model_dump(
+                                mode="json"
+                            ),
                             message="query is now complete. data cleaning is now in progress",
                         ),
                     )
@@ -180,17 +203,21 @@ class QueryService:
                     self._emitter.emit(
                         CLEAN_IN_PROGRESS,
                         payload=Event(
-                            data=query,
+                            data=QuerySerializer.model_validate(query).model_dump(
+                                mode="json"
+                            ),
                             message="query is now complete. data cleaning is now in progress",
                         ),
                     )
                     break
 
+                last_created_at_datetime = datetime.fromisoformat(last_created_at)
                 fetch_range = (
-                    datetime.fromisoformat(last_created_at) - query.start_date
+                    last_created_at_datetime.replace(tzinfo=(ZoneInfo(query.timezone)))
+                    - localized_start_date
                 ).total_seconds() / 3600
                 query.percentage = fetch_range / query_range
-                query.current_timestamp = last_created_at
+                query.current_timestamp = last_created_at_datetime
 
                 if hit_length == 10000 and query.rows_fetched == 10000:
                     query.status = FETCH_INCOMPLETE
@@ -199,20 +226,28 @@ class QueryService:
                     self._emitter.emit(
                         FETCH_INCOMPLETE,
                         payload=Event(
-                            data=query,
+                            data=QuerySerializer.model_validate(query).model_dump(
+                                mode="json"
+                            ),
                             message="data fetch is imcomplete. user must approve finishing the query to continue",
                         ),
                     )
                     break
 
-                print(last_created_at)
                 params["since"] = last_created_at
 
                 self._query_repo.update(query)
-                self._emitter.emit(FETCH_UPDATE_PROGRESS, payload=Event(data=query))
+                self._emitter.emit(
+                    FETCH_UPDATE_PROGRESS,
+                    payload=Event(
+                        data=QuerySerializer.model_validate(query).model_dump(
+                            mode="json"
+                        )
+                    ),
+                )
 
             except Exception as e:
-                logger.error(e)
+                logger.error(e, exc_info=True)
                 break
 
     def _clean_data(self, query: Query) -> None:
@@ -293,22 +328,24 @@ class QueryService:
                 logger.debug("data fetch for query: %s is starting", query.id)
                 await to_thread(self._fetch_data, query)
                 logger.debug("data fetch for query: %s is complete", query.id)
+                query = self._query_repo.find_by_id(id)
 
-            query = self._query_repo.find_by_id(id)
-
-            if query is None:
-                return
+                if query is None:
+                    return
 
             if query.status in [CLEAN_CONTINUE, CLEAN_IN_PROGRESS]:
                 await to_thread(self._clean_data, query)
+                query = self._query_repo.find_by_id(id)
 
-            query = self._query_repo.find_by_id(id)
-
-            if query is None:
-                return
+                if query is None:
+                    return
 
             if query.status in [PARSE_CONTINUE, PARSE_IN_PROGRESS]:
                 await to_thread(self._parse_data, query)
+                query = self._query_repo.find_by_id(id)
+
+                if query is None:
+                    return
 
             logger.debug(
                 "applicable processing tasks for query: %s are complete", query.id
@@ -326,7 +363,9 @@ class QueryService:
         @EventLinker.once(f"CANCEL:{str(id)}")
         def handle_task_cancel() -> None:
             logger.debug("Cancelling processing task for query: %s", str(id))
-            task.cancel()
+
+            if not task.done():
+                task.cancel()
 
     def get(self, imcomplete_only: bool = False) -> list[Query]:
         return self._query_repo.find_all(imcomplete_only)
@@ -354,7 +393,7 @@ class QueryService:
 
         terms = [QueryTerm(query_id=query.id, term=data.term)]
 
-        if len(data.term_modifiers) > 0:
+        if data.term_modifiers is not None and len(data.term_modifiers) > 0:
             terms.extend(
                 [
                     QueryTerm(

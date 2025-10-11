@@ -13,5 +13,5 @@ class QueryRequestRepository(BaseRepository[QueryRequest]):
         session = self._get_session()
 
         return list(
-            session.scalars(select(QueryRequest).where(QueryRequest.query_ID == id))
+            session.scalars(select(QueryRequest).where(QueryRequest.query_id == id))
         )

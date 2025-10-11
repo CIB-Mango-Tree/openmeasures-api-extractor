@@ -13,7 +13,7 @@ class QueryTermRepository(BaseRepository[QueryTerm]):
         session = self._get_session()
 
         return list(
-            session.scalars(select(QueryTerm).where(QueryTerm.query_ID == id)).all()
+            session.scalars(select(QueryTerm).where(QueryTerm.query_id == id)).all()
         )
 
     def batch_create(self, models: list[QueryTerm]) -> None:

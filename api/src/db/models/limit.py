@@ -11,8 +11,10 @@ class QueryLimit(Base):
     )
     count: Mapped[int] = mapped_column(Integer, nullable=False, default=39)
     percentage: Mapped[float] = mapped_column(Float, nullable=False, default=0)
-    previous_request_date: Mapped[datetime] = mapped_column(DateTime, nullable=True)
-    limit_refresh_date: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    previous_request_date: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True
+    )
+    limit_refresh_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     __table_args__: tuple[CheckConstraint] = (
         CheckConstraint(id == 1, name="singleton_check"),
     )

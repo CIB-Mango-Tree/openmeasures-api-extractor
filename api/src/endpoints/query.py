@@ -17,12 +17,13 @@ from ..utils.constants import OK, CREATED, NOT_FOUND, UNPROCESSABLE_CONTENT
 
 class QueriesEndpoint(HTTPEndpoint):
     async def get(
-        self, request: Request, query_service: QueryService = injectable
+        self, _: Request, query_service: QueryService = injectable
     ) -> JSONResponse:
         queries = query_service.get()
-        query_dump = [QuerySerializer.model_validate(query) for query in queries]
 
-        return OK_collection_response(OK, query_dump)
+        return OK_collection_response(
+            OK, [QuerySerializer.model_validate(query) for query in queries]
+        )
 
     async def post(
         self, request: Request, query_service: QueryService = injectable
