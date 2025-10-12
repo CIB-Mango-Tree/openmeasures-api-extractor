@@ -125,7 +125,9 @@ class QueryService:
                     self._query_limit_repo.update(limit)
                     self._emitter.emit(
                         LIMIT_UPDATE,
-                        Event(data=QueryLimitSerializer.convert_model_to_dict(limit)),
+                        payload=Event(
+                            data=QueryLimitSerializer.convert_model_to_dict(limit)
+                        ),
                     )
 
                 if limit.count == 0:
@@ -136,7 +138,12 @@ class QueryService:
                     self._emitter.emit(
                         LIMIT_MAXED_OUT,
                         payload=Event(
-                            data=QuerySerializer.convert_model_to_dict(query),
+                            data={
+                                "limit": QueryLimitSerializer.convert_model_to_dict(
+                                    limit
+                                ),
+                                "query": query,
+                            },
                             message="query limit has been maxed out until limit refresh",
                         ),
                     )
@@ -174,6 +181,12 @@ class QueryService:
                 limit.set_percentage()
                 self._query_request_repo.create(request)
                 self._query_limit_repo.update(limit)
+                self._emitter.emit(
+                    LIMIT_UPDATE,
+                    payload=Event(
+                        data=QueryLimitSerializer.convert_model_to_dict(limit)
+                    ),
+                )
 
                 query = self._query_repo.find_by_id(query.id)
 

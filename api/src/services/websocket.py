@@ -74,7 +74,11 @@ class WebSocketService:
             self.broadcast(
                 {
                     "event": LIMIT_MAXED_OUT,
-                    "data": {"message": payload.message, "query": payload.data},
+                    "data": {
+                        "message": payload.message,
+                        "limit": payload.data["limit"],
+                        "query": payload.data["query"],
+                    },
                 },
             )
 
