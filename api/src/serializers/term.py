@@ -1,7 +1,6 @@
-from pydantic import BaseModel, ConfigDict
+from .base import BaseSerializer
 
 
-class QueryTermSerializer(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class QueryTermSerializer(BaseSerializer):
     term: str
     modifier: str

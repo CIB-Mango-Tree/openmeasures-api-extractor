@@ -22,7 +22,7 @@ class QueriesEndpoint(HTTPEndpoint):
         queries = query_service.get()
 
         return OK_collection_response(
-            OK, [QuerySerializer.model_validate(query) for query in queries]
+            OK, QuerySerializer.convert_models_to_dict(queries)
         )
 
     async def post(
@@ -32,9 +32,8 @@ class QueriesEndpoint(HTTPEndpoint):
             body = await request.json()
             validator_data = CreateQueryValidator.model_validate(body)
             query = query_service.create(validator_data)
-            query_model = QuerySerializer.model_validate(query)
 
-            return OK_response(CREATED, query_model)
+            return OK_response(CREATED, QuerySerializer.convert_model_to_dict(query))
 
         except ValidationError as err:
             return error_response(
@@ -73,9 +72,7 @@ class QueryEndpoint(HTTPEndpoint):
                     NOT_FOUND, {"message": "query could not be found"}
                 )
 
-            query_model = QuerySerializer.model_validate(query)
-
-            return OK_response(OK, query_model)
+            return OK_response(OK, QuerySerializer.convert_model_to_dict(query))
 
         except ValidationError as err:
             return error_response(
@@ -98,9 +95,8 @@ class QueryEndpoint(HTTPEndpoint):
             body = await request.json()
             validator_data = UpdateQueryValidator.model_validate(body)
             updated_query = query_service.update(param_validator.id, validator_data)
-            query_model = QuerySerializer.model_validate(updated_query)
 
-            return OK_response(OK, query_model)
+            return OK_response(OK, QuerySerializer.convert_model_to_dict(updated_query))
 
         except ValidationError as err:
             return error_response(

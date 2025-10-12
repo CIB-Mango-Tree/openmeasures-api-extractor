@@ -66,12 +66,11 @@ class QueryService:
         if query.status == FETCH_CONTINUE:
             query.status = FETCH_IN_PROGRESS
 
+            query.set_updated_at()
             self._query_repo.update(query)
             self._emitter.emit(
                 FETCH_UPDATE_PROGRESS,
-                payload=Event(
-                    data=QuerySerializer.model_validate(query).model_dump(mode="json")
-                ),
+                payload=Event(data=QuerySerializer.convert_model_to_dict(query)),
             )
 
         if query.status == FETCH_INCOMPLETE:
@@ -121,13 +120,12 @@ class QueryService:
                 if limit.count == 0:
                     query.status = FETCH_INCOMPLETE
 
+                    query.set_updated_at()
                     self._query_repo.update(query)
                     self._emitter.emit(
                         LIMIT_MAXED_OUT,
                         payload=Event(
-                            data=QuerySerializer.model_validate(query).model_dump(
-                                mode="json"
-                            ),
+                            data=QuerySerializer.convert_model_to_dict(query),
                             message="query limit has been maxed out until limit refresh",
                         ),
                     )
@@ -140,19 +138,16 @@ class QueryService:
                 data = response.json()
                 hits = data.get("hits", {}).get("hits", [])
 
-                query.set_updated_at()
-
                 if not hits and query.current_timestamp is None:
                     query.percentage = 1.0
                     query.status = QUERY_COMPLETE
 
+                    query.set_updated_at()
                     self._query_repo.update(query)
                     self._emitter.emit(
                         QUERY_COMPLETE,
                         payload=Event(
-                            data=QuerySerializer.model_validate(query).model_dump(
-                                mode="json"
-                            ),
+                            data=QuerySerializer.convert_model_to_dict(query),
                             message="query is now complete",
                         ),
                     )
@@ -180,13 +175,12 @@ class QueryService:
                     query.percentage = 1.0
                     query.status = CLEAN_IN_PROGRESS
 
+                    query.set_updated_at()
                     self._query_repo.update(query)
                     self._emitter.emit(
                         CLEAN_IN_PROGRESS,
                         payload=Event(
-                            data=QuerySerializer.model_validate(query).model_dump(
-                                mode="json"
-                            ),
+                            data=QuerySerializer.convert_model_to_dict(query),
                             message="query is now complete. data cleaning is now in progress",
                         ),
                     )
@@ -199,13 +193,12 @@ class QueryService:
                     query.percentage = 1.0
                     query.status = CLEAN_IN_PROGRESS
 
+                    query.set_updated_at()
                     self._query_repo.update(query)
                     self._emitter.emit(
                         CLEAN_IN_PROGRESS,
                         payload=Event(
-                            data=QuerySerializer.model_validate(query).model_dump(
-                                mode="json"
-                            ),
+                            data=QuerySerializer.convert_model_to_dict(query),
                             message="query is now complete. data cleaning is now in progress",
                         ),
                     )
@@ -222,13 +215,12 @@ class QueryService:
                 if hit_length == 10000 and query.rows_fetched == 10000:
                     query.status = FETCH_INCOMPLETE
 
+                    query.set_updated_at()
                     self._query_repo.update(query)
                     self._emitter.emit(
                         FETCH_INCOMPLETE,
                         payload=Event(
-                            data=QuerySerializer.model_validate(query).model_dump(
-                                mode="json"
-                            ),
+                            data=QuerySerializer.convert_model_to_dict(query),
                             message="data fetch is imcomplete. user must approve finishing the query to continue",
                         ),
                     )
@@ -236,13 +228,12 @@ class QueryService:
 
                 params["since"] = last_created_at
 
+                query.set_updated_at()
                 self._query_repo.update(query)
                 self._emitter.emit(
                     FETCH_UPDATE_PROGRESS,
                     payload=Event(
-                        data=QuerySerializer.model_validate(query).model_dump(
-                            mode="json"
-                        )
+                        data=QuerySerializer.convert_model_to_dict(query),
                     ),
                 )
 
@@ -279,15 +270,23 @@ class QueryService:
                 cleaned_data.append(source)
 
             request.cleaned_data = cleaned_data
+
+            request.set_updated_at()
             self._query_request_repo.update(request)
+
+        query = self._query_repo.find_by_id(query.id)
+
+        if query is None:
+            return
 
         query.status = PARSE_IN_PROGRESS
 
+        query.set_updated_at()
         self._query_repo.update(query)
         self._emitter.emit(
             PARSE_IN_PROGRESS,
             payload=Event(
-                data=query,
+                data=QuerySerializer.convert_model_to_dict(query),
                 message="data cleaning is complete. parsing is now in progress",
             ),
         )
@@ -312,9 +311,14 @@ class QueryService:
         query.status = QUERY_COMPLETE
 
         query.from_dataframe_to_processed_data(data_frame)
+        query.set_updated_at()
         self._query_repo.update(query)
         self._emitter.emit(
-            QUERY_COMPLETE, payload=Event(data=query, message="query is now complete")
+            QUERY_COMPLETE,
+            payload=Event(
+                data=QuerySerializer.convert_model_to_dict(query),
+                message="query is now complete",
+            ),
         )
 
     def process_query(self, id: UUID) -> None:

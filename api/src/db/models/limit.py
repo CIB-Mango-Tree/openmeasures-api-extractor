@@ -32,3 +32,8 @@ class QueryLimit(Base):
 
     def set_percentage(self) -> None:
         self.percentage = self.count / 39
+
+    def reset(self) -> None:
+        self.count = 39
+        self.percentage = 0
+        self.limit_refresh_date = None

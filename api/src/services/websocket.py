@@ -92,6 +92,9 @@ class WebSocketService:
                 },
             )
 
+    def is_event_loop_set(self) -> bool:
+        return self._loop is not None
+
     def set_event_loop(self, loop: AbstractEventLoop) -> None:
         self._loop = loop
 

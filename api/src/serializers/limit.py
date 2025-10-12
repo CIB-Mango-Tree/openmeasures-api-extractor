@@ -1,11 +1,9 @@
-from pydantic import BaseModel, ConfigDict
 from datetime import datetime
-from typing import Optional
+from .base import BaseSerializer
 
 
-class QueryLimitSerializer(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class QueryLimitSerializer(BaseSerializer):
     count: int
     percentage: float
-    previous_request_date: Optional[datetime] = None
-    limit_refresh_date: Optional[datetime] = None
+    previous_request_date: datetime | None = None
+    limit_refresh_date: datetime | None = None

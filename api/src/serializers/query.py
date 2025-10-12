@@ -1,11 +1,11 @@
-from pydantic import BaseModel, ConfigDict, UUID4
+from pydantic import UUID4
 from datetime import datetime
+from .base import BaseSerializer
 from .term import QueryTermSerializer
 from .request import QueryRequestSerializer
 
 
-class QuerySerializer(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class QuerySerializer(BaseSerializer):
     id: UUID4
     created_at: datetime
     updated_at: datetime | None = None

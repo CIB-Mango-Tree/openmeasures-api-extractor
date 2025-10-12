@@ -19,7 +19,9 @@ class UpdateStreamEndpoint(WebSocketEndpoint):
         loop = get_running_loop()
         connection = websocket_service.create(websocket)
 
-        websocket_service.set_event_loop(loop)
+        if not websocket_service.is_event_loop_set():
+            websocket_service.set_event_loop(loop)
+
         await connection.socket.accept()
         await connection.socket.send_json({"message": "Connected!!!"})
 

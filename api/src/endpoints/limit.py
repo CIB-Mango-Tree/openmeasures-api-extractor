@@ -25,6 +25,4 @@ class QueryLimitEndpoint(HTTPEndpoint):
                 },
             )
 
-        limit_model = QueryLimitSerializer.model_validate(limit)
-
-        return OK_response(OK, limit_model.model_dump())
+        return OK_response(OK, QueryLimitSerializer.convert_model_to_dict(limit))
