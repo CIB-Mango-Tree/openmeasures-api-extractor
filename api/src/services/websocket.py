@@ -76,8 +76,7 @@ class WebSocketService:
                     "event": LIMIT_MAXED_OUT,
                     "data": {
                         "message": payload.message,
-                        "limit": payload.data["limit"],
-                        "query": payload.data["query"],
+                        "limit": payload.data,
                     },
                 },
             )

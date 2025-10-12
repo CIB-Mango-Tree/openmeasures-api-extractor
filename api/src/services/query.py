@@ -138,12 +138,7 @@ class QueryService:
                     self._emitter.emit(
                         LIMIT_MAXED_OUT,
                         payload=Event(
-                            data={
-                                "limit": QueryLimitSerializer.convert_model_to_dict(
-                                    limit
-                                ),
-                                "query": query,
-                            },
+                            data=QueryLimitSerializer.convert_model_to_dict(limit),
                             message="query limit has been maxed out until limit refresh",
                         ),
                     )
