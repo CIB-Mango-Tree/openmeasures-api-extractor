@@ -37,7 +37,7 @@ class QueryExportService:
 
         if data.format.value == JSON:
             filename += ".json"
-            data_frame.to_json(buffer)
+            data_frame.to_json(buffer, orient="records")
 
         if data.format.value == CSV:
             filename += ".csv"
