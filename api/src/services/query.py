@@ -34,8 +34,8 @@ from ..utils.constants import (
     PARSE_INCOMPLETE,
     QUERY_COMPLETE,
     LIMIT_MAXED_OUT,
-    BLUESKY_COLUMNS_TO_KEEP,
-    TRUTH_COLUMNS_TO_KEEP,
+    DATAFRAME_COLUMNS,
+    TIMESTAMP_COLUMNS,
 )
 from ..log import logger
 from ..settings import API_URL
@@ -62,7 +62,7 @@ class QueryService:
         self._query_request_repo = query_request_repo
         self._query_limit_repo = query_limit_repo
 
-    def _fetch_data(self, query: Query) -> None:
+    def _fetch_data(self, query: Query) -> Query | None:
         if query.status == FETCH_CONTINUE:
             query.status = FETCH_IN_PROGRESS
 
@@ -74,12 +74,12 @@ class QueryService:
             )
 
         if query.status == FETCH_INCOMPLETE:
-            return
+            return None
 
         limit = self._query_limit_repo.find()
 
         if limit is None:
-            return
+            return None
 
         logger.debug(
             "limit - count: %d last_fetch: %s",
@@ -181,12 +181,19 @@ class QueryService:
                         CLEAN_IN_PROGRESS,
                         payload=Event(
                             data=QuerySerializer.convert_model_to_dict(query),
-                            message="query is now complete. data cleaning is now in progress",
+                            message="data fetch is now complete. data cleaning is now in progress",
                         ),
                     )
                     break
 
-                last_created_at = hits[-1]["_source"].get("createdAt")
+                timestamp_column = TIMESTAMP_COLUMNS[query.platform]
+
+                if timestamp_column is None:
+                    raise ValueError(
+                        f"Unknown platform being used during _fetch_data function call platform: {query.platform}"
+                    )
+
+                last_created_at = hits[-1]["_source"].get(timestamp_column)
 
                 if not last_created_at:
                     print("No 'created_at' found in the last hit.")
@@ -199,7 +206,7 @@ class QueryService:
                         CLEAN_IN_PROGRESS,
                         payload=Event(
                             data=QuerySerializer.convert_model_to_dict(query),
-                            message="query is now complete. data cleaning is now in progress",
+                            message="data fetch is now complete. data cleaning is now in progress",
                         ),
                     )
                     break
@@ -241,85 +248,110 @@ class QueryService:
                 logger.error(e, exc_info=True)
                 break
 
-    def _clean_data(self, query: Query) -> None:
+        return query
+
+    def _clean_data(self, query: Query) -> Query | None:
         if query.status == CLEAN_CONTINUE:
             query.status = CLEAN_IN_PROGRESS
             self._query_repo.update(query)
 
         if query.status == CLEAN_INCOMPLETE:
-            return
+            return None
 
-        for request in query.requests:
-            cleaned_data = []
+        try:
+            for request in query.requests:
+                cleaned_data = []
 
-            for hit in request.data:
-                source = hit["_source"]
+                for hit in request.data:
+                    source = hit["_source"]
 
-                if source.get("embed") and source["embed"].get("external"):
-                    if source["embed"]["external"].get("description") is not None:
-                        source["embed"]["external"]["description"] = "␣"
-                        clean_text(source["embed"]["external"]["description"])
+                    if source.get("embed") and source["embed"].get("external"):
+                        if source["embed"]["external"].get("description") is not None:
+                            source["embed"]["external"]["description"] = "␣"
+                            clean_text(source["embed"]["external"]["description"])
 
-                    if source["embed"]["external"].get("title") is not None:
-                        source["embed"]["external"]["title"] = "␣"
-                        clean_text(source["embed"]["external"]["title"])
+                        if source["embed"]["external"].get("title") is not None:
+                            source["embed"]["external"]["title"] = "␣"
+                            clean_text(source["embed"]["external"]["title"])
 
-                if source.get("text") is not None:
-                    source["text"] = clean_text(source["text"])
+                    if source.get("text") is not None:
+                        source["text"] = clean_text(source["text"])
 
-                cleaned_data.append(source)
+                    cleaned_data.append(source)
 
-            request.cleaned_data = cleaned_data
+                request.cleaned_data = cleaned_data
 
-            request.set_updated_at()
-            self._query_request_repo.update(request)
+                request.set_updated_at()
+                self._query_request_repo.update(request)
 
-        query = self._query_repo.find_by_id(query.id)
+            query = self._query_repo.find_by_id(query.id)
 
-        if query is None:
-            return
+            if query is None:
+                return None
 
-        query.status = PARSE_IN_PROGRESS
+            query.status = PARSE_IN_PROGRESS
 
-        query.set_updated_at()
-        self._query_repo.update(query)
-        self._emitter.emit(
-            PARSE_IN_PROGRESS,
-            payload=Event(
-                data=QuerySerializer.convert_model_to_dict(query),
-                message="data cleaning is complete. parsing is now in progress",
-            ),
-        )
+            query.set_updated_at()
+            self._query_repo.update(query)
+            self._emitter.emit(
+                PARSE_IN_PROGRESS,
+                payload=Event(
+                    data=QuerySerializer.convert_model_to_dict(query),
+                    message="data cleaning is complete. parsing is now in progress",
+                ),
+            )
 
-    def _parse_data(self, query: Query) -> None:
+            return query
+
+        except Exception as err:
+            logger.error(err, exc_info=True)
+            return None
+
+    def _parse_data(self, query: Query) -> Query | None:
+        logger.debug(f"_parse_data called for query {query.id}, status: {query.status}")
+
         if query.status == PARSE_CONTINUE:
             query.status = PARSE_IN_PROGRESS
             self._query_repo.update(query)
 
         if query.status == PARSE_INCOMPLETE:
-            return
+            return None
 
-        data_frame: DataFrame = query.from_requests_to_dataframe()
+        try:
+            logger.debug("Creating dataframe from requests...")
+            data_frame: DataFrame = query.from_requests_to_dataframe()
+            logger.debug(f"Dataframe created with {len(data_frame)} rows")
 
-        if query.platform == "bluesky":
-            data_frame = data_frame[BLUESKY_COLUMNS_TO_KEEP]
+            dataframe_columns = DATAFRAME_COLUMNS[query.platform]
 
-        if query.platform == "truth_social":
-            data_frame = data_frame[TRUTH_COLUMNS_TO_KEEP]
+            if dataframe_columns is None:
+                raise ValueError(
+                    f"Unknown platform is being used during _parse_data function call platform: {query.platform}"
+                )
 
-        data_frame.columns = data_frame.columns.str.replace("_source.", "", regex=False)
-        query.status = QUERY_COMPLETE
+            available_columns = [
+                column for column in dataframe_columns if column in data_frame.columns
+            ]
+            data_frame = data_frame[available_columns]
 
-        query.from_dataframe_to_processed_data(data_frame)
-        query.set_updated_at()
-        self._query_repo.update(query)
-        self._emitter.emit(
-            QUERY_COMPLETE,
-            payload=Event(
-                data=QuerySerializer.convert_model_to_dict(query),
-                message="query is now complete",
-            ),
-        )
+            logger.debug("Converting to processed data...")
+            query.from_dataframe_to_processed_data(data_frame)
+            query.status = QUERY_COMPLETE
+            query.set_updated_at()
+            self._query_repo.update(query)
+            self._emitter.emit(
+                QUERY_COMPLETE,
+                payload=Event(
+                    data=QuerySerializer.convert_model_to_dict(query),
+                    message="query is now complete",
+                ),
+            )
+
+            return query
+
+        except Exception as err:
+            logger.error(err, exc_info=True)
+            return None
 
     def process_query(self, id: UUID) -> None:
         async def func() -> None:
@@ -330,23 +362,21 @@ class QueryService:
 
             if query.status in [FETCH_CONTINUE, FETCH_IN_PROGRESS]:
                 logger.debug("data fetch for query: %s is starting", query.id)
-                await to_thread(self._fetch_data, query)
-                logger.debug("data fetch for query: %s is complete", query.id)
-                query = self._query_repo.find_by_id(id)
+                query = await to_thread(self._fetch_data, query)
 
                 if query is None:
                     return
 
+                logger.debug("data fetch for query: %s is complete", query.id)
+
             if query.status in [CLEAN_CONTINUE, CLEAN_IN_PROGRESS]:
-                await to_thread(self._clean_data, query)
-                query = self._query_repo.find_by_id(id)
+                query = await to_thread(self._clean_data, query)
 
                 if query is None:
                     return
 
             if query.status in [PARSE_CONTINUE, PARSE_IN_PROGRESS]:
-                await to_thread(self._parse_data, query)
-                query = self._query_repo.find_by_id(id)
+                query = await to_thread(self._parse_data, query)
 
                 if query is None:
                     return
@@ -366,10 +396,11 @@ class QueryService:
 
         @EventLinker.once(f"CANCEL:{str(id)}")
         def handle_task_cancel() -> None:
-            logger.debug("Cancelling processing task for query: %s", str(id))
+            if task.done():
+                return
 
-            if not task.done():
-                task.cancel()
+            logger.debug("Cancelling processing task for query: %s", str(id))
+            task.cancel()
 
     def get(self, imcomplete_only: bool = False) -> list[Query]:
         return self._query_repo.find_all(imcomplete_only)

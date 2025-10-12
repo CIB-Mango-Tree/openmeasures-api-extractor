@@ -71,8 +71,7 @@ class WebSocketService:
 
         @EventLinker.on(LIMIT_MAXED_OUT)
         def handle_maxed_limit(payload: Event) -> None:
-            self.send_by_topic(
-                payload.data["id"],
+            self.broadcast(
                 {
                     "event": LIMIT_MAXED_OUT,
                     "data": {"message": payload.message, "query": payload.data},

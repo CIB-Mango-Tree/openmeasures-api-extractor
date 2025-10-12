@@ -5,6 +5,8 @@ from .base import BaseRepository
 from ..models import Query
 from ...utils.constants import FETCH_INCOMPLETE, CLEAN_INCOMPLETE, PARSE_INCOMPLETE
 
+INCOMPLETE_STATUSES = [FETCH_INCOMPLETE, CLEAN_INCOMPLETE, PARSE_INCOMPLETE]
+
 
 class QueryRepository(BaseRepository[Query]):
     def __init__(self, factory: scoped_session[Session]) -> None:
@@ -18,12 +20,8 @@ class QueryRepository(BaseRepository[Query]):
                 session.scalars(
                     select(Query)
                     .options(joinedload(Query.terms), joinedload(Query.requests))
-                    .where(
-                        Query.status.in_(
-                            [FETCH_INCOMPLETE, CLEAN_INCOMPLETE, PARSE_INCOMPLETE]
-                        )
-                    )
-                ).all()
+                    .where(Query.status.in_(INCOMPLETE_STATUSES))
+                ).unique()
             )
 
         return list(
@@ -31,7 +29,7 @@ class QueryRepository(BaseRepository[Query]):
                 select(Query).options(
                     joinedload(Query.terms), joinedload(Query.requests)
                 )
-            ).all()
+            ).unique()
         )
 
     def find_by_id(self, id: UUID) -> Query | None:
@@ -51,7 +49,7 @@ class QueryRepository(BaseRepository[Query]):
                 select(Query)
                 .options(joinedload(Query.terms), joinedload(Query.requests))
                 .where(Query.status == status)
-            ).all()
+            ).unique()
         )
 
     def find_by_platform(
@@ -66,11 +64,9 @@ class QueryRepository(BaseRepository[Query]):
                     .options(joinedload(Query.terms), joinedload(Query.requests))
                     .where(
                         Query.platform == platform,
-                        Query.status.in_(
-                            [FETCH_INCOMPLETE, CLEAN_INCOMPLETE, PARSE_INCOMPLETE]
-                        ),
+                        Query.status.in_(INCOMPLETE_STATUSES),
                     )
-                ).all()
+                ).unique()
             )
 
         return list(
@@ -78,7 +74,7 @@ class QueryRepository(BaseRepository[Query]):
                 select(Query)
                 .options(joinedload(Query.terms), joinedload(Query.requests))
                 .where(Query.platform == platform)
-            ).all()
+            ).unique()
         )
 
     def batch_delete(self, ids: list[UUID]) -> None:

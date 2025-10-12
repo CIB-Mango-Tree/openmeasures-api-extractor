@@ -19,11 +19,14 @@ class QueryLimit(Base):
         CheckConstraint(id == 1, name="singleton_check"),
     )
 
-    def decrement(self) -> None:
+    def decrement(self, step: int = 1) -> None:
         if self.count == 0:
             return
 
-        self.count -= 1
+        if step < 0 or (step + self.count) > 39:
+            return
+
+        self.count -= step
 
     def set_timestamps(self) -> None:
         now = datetime.now()
