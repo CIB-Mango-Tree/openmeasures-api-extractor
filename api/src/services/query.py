@@ -18,7 +18,7 @@ from ..validator import (
     DeleteQueriesValidator,
     ParamValidator,
 )
-from ..serializers import QuerySerializer
+from ..serializers import QuerySerializer, QueryLimitSerializer
 from ..event import Event
 from ..utils.sanitize import clean_text
 from ..utils.constants import (
@@ -34,6 +34,7 @@ from ..utils.constants import (
     PARSE_INCOMPLETE,
     QUERY_COMPLETE,
     LIMIT_MAXED_OUT,
+    LIMIT_UPDATE,
     DATAFRAME_COLUMNS,
     TIMESTAMP_COLUMNS,
 )
@@ -117,6 +118,16 @@ class QueryService:
 
         while True:
             try:
+                if (limit.limit_refresh_date is not None) and (
+                    datetime.now() > limit.limit_refresh_date
+                ):
+                    limit.reset()
+                    self._query_limit_repo.update(limit)
+                    self._emitter.emit(
+                        LIMIT_UPDATE,
+                        Event(data=QueryLimitSerializer.convert_model_to_dict(limit)),
+                    )
+
                 if limit.count == 0:
                     query.status = FETCH_INCOMPLETE
 
@@ -454,11 +465,13 @@ class QueryService:
         if query.status == FETCH_INCOMPLETE and data.status == FETCH_CONTINUE:
             query.status = FETCH_CONTINUE
 
-        if query.status == CLEAN_INCOMPLETE and data.status == CLEAN_CONTINUE:
+        if (query.status == CLEAN_INCOMPLETE and data.status == CLEAN_CONTINUE) or (
+            query.status == FETCH_INCOMPLETE and data.status == CLEAN_CONTINUE
+        ):
             query.status = CLEAN_CONTINUE
 
         if query.status == PARSE_INCOMPLETE and data.status == PARSE_CONTINUE:
-            query.status = PARSE_IN_PROGRESS
+            query.status = PARSE_CONTINUE
 
         self._emitter.emit(f"CANCEL:{str(query.id)}")
         self._query_repo.update(query)

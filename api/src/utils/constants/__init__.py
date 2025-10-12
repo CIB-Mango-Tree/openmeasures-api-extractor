@@ -11,6 +11,7 @@ from .status import (
     PARSE_CONTINUE,
     QUERY_COMPLETE,
     LIMIT_MAXED_OUT,
+    LIMIT_UPDATE,
 )
 from .responses.ok import (
     OK,
@@ -131,4 +132,5 @@ __all__ = [
     "UNSUBSCRIBE",
     "DATAFRAME_COLUMNS",
     "TIMESTAMP_COLUMNS",
+    "LIMIT_UPDATE",
 ]

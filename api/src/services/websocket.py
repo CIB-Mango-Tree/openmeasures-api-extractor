@@ -17,6 +17,7 @@ from ..utils.constants import (
     PARSE_IN_PROGRESS,
     QUERY_COMPLETE,
     LIMIT_MAXED_OUT,
+    LIMIT_UPDATE,
 )
 from typing import Any
 
@@ -47,7 +48,6 @@ class WebSocketService:
                     "data": {"message": payload.message, "query": payload.data},
                 },
             )
-            logger.error(f"!!! EVENT EMITTED !!!")
 
         @EventLinker.on(CLEAN_IN_PROGRESS)
         def handle_in_progress_clean(payload: Event):
@@ -77,6 +77,10 @@ class WebSocketService:
                     "data": {"message": payload.message, "query": payload.data},
                 },
             )
+
+        @EventLinker.on(LIMIT_UPDATE)
+        def handle_limit_update(payload: Event) -> None:
+            self.broadcast({"event": LIMIT_UPDATE, "data": payload.data})
 
         @EventLinker.on(QUERY_COMPLETE)
         def handle_query_complete(payload: Event) -> None:
