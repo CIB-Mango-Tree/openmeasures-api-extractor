@@ -41,7 +41,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body>
+      <body className="grid grid-flow-row grid-rows-[auto_1fr_auto] col-span-full max-w-svw min-h-svh bg-zinc-50">
         <Header />
         {children}
         <TanStackDevtools
