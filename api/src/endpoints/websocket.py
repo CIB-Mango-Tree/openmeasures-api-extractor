@@ -16,10 +16,10 @@ class UpdateStreamEndpoint(WebSocketEndpoint):
     async def on_connect(
         self, websocket: WebSocket, websocket_service: WebSocketService = injectable
     ) -> None:
-        loop = get_running_loop()
         connection = websocket_service.create(websocket)
 
         if not websocket_service.is_event_loop_set():
+            loop = get_running_loop()
             websocket_service.set_event_loop(loop)
 
         await connection.socket.accept()
@@ -67,6 +67,7 @@ class UpdateStreamEndpoint(WebSocketEndpoint):
                         },
                     }
                 )
+                return
 
             if validator_data.action.value == UNSUBSCRIBE:
                 connection = websocekt_service.unsubscribe(connection.id, topic_str)
@@ -82,6 +83,7 @@ class UpdateStreamEndpoint(WebSocketEndpoint):
                         },
                     }
                 )
+                return
 
         except ValidationError as err:
             if connection is None:

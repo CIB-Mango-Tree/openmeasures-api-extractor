@@ -134,7 +134,7 @@ class WebSocketService:
     def unsubscribe(self, id: str, topic: str) -> WebSocketConnection | None:
         connection = self._store.get_by_id(id)
 
-        if not connection:
+        if connection is None:
             return None
 
         connection.topics.remove(topic)
@@ -148,10 +148,10 @@ class WebSocketService:
 
         connections = self._store.get()
 
-        async def func():
-            if not connections:
-                return
+        if len(connections) == 0:
+            return
 
+        async def func():
             await gather(
                 *[connection.socket.send_json(data) for connection in connections],
                 return_exceptions=True,
@@ -191,11 +191,11 @@ class WebSocketService:
 
         connections = self._store.get()
 
-        async def func() -> None:
-            if not connections:
-                return
+        if len(connections) == 0:
+            return
 
-            results = await gather(
+        async def func() -> None:
+            await gather(
                 *[
                     connection.socket.send_json(data)
                     for connection in connections
@@ -203,7 +203,6 @@ class WebSocketService:
                 ],
                 return_exceptions=True,
             )
-            logger.debug(f"Send results: {results}")
 
         logger.debug("About to create task")
 
