@@ -10,6 +10,9 @@ function App(): ReactElement<FC> {
   return (
     <main className="grid grid-flow-col px-20 pt-8">
       <Hero />
+      <section className="grid grid-flow-col"></section>
+      <section className="grid grid-flow-col"></section>
+      <section className="grid grid-flow-col"></section>
     </main>
   )
 }
