@@ -1,0 +1,13 @@
+export const FETCH_IN_PROGRESS = 'FETCH:IN_PROGRESS' as const;
+export const FETCH_UPDATE_PROGRESS = 'FETCH:UPDATE_PROGRESS' as const;
+export const FETCH_INCOMPLETE = 'FETCH:INCOMPLETE' as const;
+export const FETCH_CONTINUE = 'FETCH:CONTINUE' as const;
+export const CLEAN_IN_PROGRESS = 'CLEAN:IN_PROGRESS' as const;
+export const CLEAN_INCOMPLETE = 'CLEAN:INCOMPLETE' as const;
+export const CLEAN_CONTINUE = 'CLEAN:CONTINUE' as const;
+export const PARSE_IN_PROGRESS = 'PARSE:IN_PROGRESS' as const;
+export const PARSE_INCOMPLETE = 'PARSE:INCOMPLETE' as const;
+export const PARSE_CONTINUE = 'PARSE:CONTINUE' as const;
+export const QUERY_COMPLETE = 'COMPLETE' as const;
+export const LIMIT_MAXED_OUT = 'LIMIT:MAXED_OUT' as const;
+export const LIMIT_UPDATE = 'LIMIT:UPDATE' as const;
