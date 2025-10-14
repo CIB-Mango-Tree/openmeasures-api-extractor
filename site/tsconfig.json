@@ -25,6 +25,9 @@
       "@/*": ["./src/*"],
       "@components/*": ["./src/components/*"],
       "@lib/*": ["./src/lib/*"],
+      "@appTypes/*": ["./src/lib/types/*"],
+      "@constants/*": ["./src/lib/constants/*"],
+      "@state/*": ["./src/lib/state/*"],
     }
   }
 }
