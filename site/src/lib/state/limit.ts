@@ -9,7 +9,7 @@ export interface LimitState {
 }
 
 export const useLimitState = create<LimitState>((setState): LimitState => ({
-  count: 0,
+  count: 39,
   previousRequestDate: null,
   limitRefreshDate: null,
   set: (limit: Limit): void => setState((state: LimitState): LimitState => ({ ...limit, ...state }))

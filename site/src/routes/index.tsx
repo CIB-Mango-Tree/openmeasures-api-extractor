@@ -3,6 +3,7 @@ import Hero from '@components/hero';
 import type { ReactElement, FC } from 'react';
 
 export const Route = createFileRoute('/')({
+  ssr: true,
   component: App,
 })
 
