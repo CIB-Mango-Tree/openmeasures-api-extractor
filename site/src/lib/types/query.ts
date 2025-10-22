@@ -24,3 +24,16 @@ export type Query = {
   terms: Array<QueryTerm>;
   requests: Array<QueryRequest>;
 };
+
+export type QueryTermModifier = {
+  term: string;
+  modifier: 'AND' | 'OR';
+};
+
+export type CreateQueryPayload = {
+  start_date: Date;
+  end_date: Date;
+  platform: string;
+  term: string;
+  modifiers: Array<QueryTermModifier>;
+};
