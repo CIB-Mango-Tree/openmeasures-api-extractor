@@ -17,7 +17,7 @@ export function HeroLink({ href, children }: HeroLinkProps): ReactElement<FC> {
 
 export default function Hero(): ReactElement<FC> {
   return (
-    <section className="grid grid-flow-row auto-rows-min gap-4">
+    <section className="grid grid-flow-row gap-4">
       <h1 className="font-bold text-4xl">Social Media API Extractor</h1>
       <p>
         This application by <HeroLink href="https://cibmangotree.org">CIB Mango Tree</HeroLink> pulls datasets of social media activity from the Open Measures API.

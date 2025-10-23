@@ -25,15 +25,18 @@ export function LimitCounter(): ReactElement<FC> {
   const count = useLimitState((state: LimitState): number => state.count);
 
   return (
-    <Card className="h-min col-span-4 justify-start">
+    <Card className="col-span-4 justify-start gap-0 py-4">
       <CardHeader>
-        <CardTitle className="font-normal text-3xl">Queries left today</CardTitle>
+        <CardTitle className="font-normal">Queries left today</CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-4xl text-muted-foreground"><span className="text-zinc-900">{count}</span>/39</p>
+        <p className="text-xl text-muted-foreground font-bold">
+          <span className="text-zinc-900">{count}</span>
+          /39
+        </p>
       </CardContent>
       <CardFooter>
-        <p className="text-muted-foreground">{39 - count} used</p>
+        <p className="text-sm text-muted-foreground">{39 - count} used</p>
       </CardFooter>
     </Card>
   );
