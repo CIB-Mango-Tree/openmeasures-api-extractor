@@ -1,6 +1,4 @@
 import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
-import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
-import { TanStackDevtools } from '@tanstack/react-devtools'
 import Header from '@components/header';
 import appCss from '@/styles.css?url'
 
@@ -42,17 +40,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body className="grid grid-flow-row grid-rows-[auto_1fr_auto] col-span-full max-w-svw min-h-svh bg-zinc-50">
         <Header />
         {children}
-        <TanStackDevtools
-          config={{
-            position: 'bottom-right',
-          }}
-          plugins={[
-            {
-              name: 'Tanstack Router',
-              render: <TanStackRouterDevtoolsPanel />,
-            },
-          ]}
-        />
         <Scripts />
       </body>
     </html>
