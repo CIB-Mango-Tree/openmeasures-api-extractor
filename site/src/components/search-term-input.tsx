@@ -2,6 +2,7 @@ import { Button } from './ui/button';
 import { Field } from '@components/ui/field';
 import { Input } from '@components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@components/ui/select';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@components/ui/tooltip';
 import { Delete } from 'lucide-react';
 import { cn } from '@lib/utils';
 import type { ReactElement, FC, ChangeEvent } from 'react';
@@ -19,7 +20,10 @@ export interface SearchTermInputProps {
 };
 
 export default function SearchTermInput({ index, modifier, term, onChange, disabled, showDeleteButton, onButtonCLick }: SearchTermInputProps): ReactElement<FC> {
-  const inputClasses: string = cn({ 'col-span-4': !showDeleteButton, 'col-span-3': showDeleteButton });
+  const inputClasses: string = cn({
+    'w-1/2': !showDeleteButton,
+    'w-[42.75%]': showDeleteButton
+  });
   const handleSelect = (value: string): void => {
     if (value !== modifier) onChange({
       index,
@@ -40,30 +44,36 @@ export default function SearchTermInput({ index, modifier, term, onChange, disab
   };
 
   return (
-    <Field key={index}>
-      <div className="grid grid-flow-col grid-cols-8">
-        <Select disabled={disabled} value={modifier} onValueChange={handleSelect} >
-          <SelectTrigger className="col-span-4">
-            <SelectValue placeholder="Select Modifier" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="EQUAL">Contains</SelectItem>
-            <SelectItem value="AND">Also Contains</SelectItem>
-            <SelectItem value="OR">Or Contains</SelectItem>
-          </SelectContent>
-        </Select>
-        <Input type="text"
-          disabled={disabled}
-          placeholder="Type term here..."
-          value={term}
-          onChange={handleChange}
-          className={inputClasses} />
-        {showDeleteButton && (
-          <Button variant="link" onClick={handleDeleteClick}>
-            <Delete />
-          </Button>
-        )}
-      </div>
+    <Field key={index} orientation="horizontal">
+      <Select disabled={disabled} value={modifier} onValueChange={handleSelect} >
+        <SelectTrigger className="w-1/2">
+          <SelectValue placeholder="Select Modifier" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="EQUAL">Contains</SelectItem>
+          <SelectItem value="AND">Also Contains</SelectItem>
+          <SelectItem value="OR">Or Contains</SelectItem>
+        </SelectContent>
+      </Select>
+      <Input type="text"
+        disabled={disabled}
+        placeholder="Type term here.."
+        autoComplete="off"
+        value={term}
+        onChange={handleChange}
+        className={inputClasses} />
+      {showDeleteButton && (
+        <Tooltip delayDuration={1000}>
+          <TooltipTrigger asChild>
+            <Button variant="link" className="cursor-pointer" disabled={disabled} onClick={handleDeleteClick}>
+              <Delete className="size-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            Remove search term
+          </TooltipContent>
+        </Tooltip>
+      )}
     </Field>
   );
 }

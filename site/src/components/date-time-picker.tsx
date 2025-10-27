@@ -15,9 +15,10 @@ import type { ReactElement, FC, ChangeEvent } from 'react';
 export interface DateTimePickerProps {
   value?: Date;
   onChange?: (value: Date) => void;
+  disabled?: boolean;
 }
 
-export default function DateTimePicker({ value, onChange }: DateTimePickerProps): ReactElement<FC> {
+export default function DateTimePicker({ value, disabled, onChange }: DateTimePickerProps): ReactElement<FC> {
   const [mounted, setMounted] = useState<boolean>(false);
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<Date | undefined>(undefined);
@@ -31,8 +32,6 @@ export default function DateTimePicker({ value, onChange }: DateTimePickerProps)
       setTime('00:00:00');
       return;
     }
-
-    console.log(event.currentTarget.value);
 
     setTime(event.currentTarget.value);
   };
@@ -75,6 +74,7 @@ export default function DateTimePicker({ value, onChange }: DateTimePickerProps)
           <Button
             variant="outline"
             id="date-picker"
+            disabled={disabled}
             className="font-normal col-span-5 justify-start"
           >
             <span className="w-full text-left">
@@ -88,6 +88,7 @@ export default function DateTimePicker({ value, onChange }: DateTimePickerProps)
             mode="single"
             selected={date}
             captionLayout="dropdown"
+            disabled={disabled}
             onSelect={handleDateSelect}
           />
         </PopoverContent>
@@ -97,6 +98,7 @@ export default function DateTimePicker({ value, onChange }: DateTimePickerProps)
         step="1"
         value={time}
         onChange={handleTimeChange}
+        disabled={disabled}
         className="bg-background appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none col-span-3"
       />
     </div>
