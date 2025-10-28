@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import Hero from '@components/hero';
 import { LimitCounter, LimitAlert } from '@components/limit';
-import { QueryBuilder, QueryResultView } from '@components/query';
+import { QueryBuilder, QueryResultView, QueryTable } from '@components/query';
 import type { ReactElement, FC } from 'react';
 
 export const Route = createFileRoute('/')({
@@ -21,7 +21,9 @@ function App(): ReactElement<FC> {
         <QueryBuilder />
         <QueryResultView />
       </section>
-      <section className="grid grid-flow-col"></section>
+      <section className="grid grid-flow-col grid-cols-12">
+        <QueryTable />
+      </section>
     </main>
   )
 }

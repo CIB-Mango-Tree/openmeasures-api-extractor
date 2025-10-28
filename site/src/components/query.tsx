@@ -1,23 +1,89 @@
-import { useState } from 'react';
-import { Sheet, FileJson2, FileSpreadsheet, SquarePlus } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { flexRender, getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
+import { Sheet, FileJson2, FileSpreadsheet, SquarePlus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent, CardFooter } from '@components/ui/card';
 import { Field, FieldLabel, FieldSet, FieldGroup } from '@components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@components/ui/select';
-import { } from '@components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@components/ui/table';
 import { Button } from '@components/ui/button';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@components/ui/dropdown-menu';
+import { Badge } from '@components/ui/badge';
 import { Progress } from '@components/ui/progress';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@components/ui/tooltip';
 import DateTimePicker from '@components/date-time-picker';
 import SearchTermInput from '@components/search-term-input';
 import { GETQueries, POSTQuery } from '@lib/fetch/query';
-import { useFetchingQueryState } from '@lib/state/query';
+import { useFetchingQueryState, useQueries } from '@lib/state/query';
 import { QUERY_COMPLETE } from '@constants/status';
 import type { ReactElement, FC, FormEvent } from 'react';
-import type { FetchingQueryState } from '@state/query';
+import type { ColumnDef, CellContext, HeaderGroup, Header, Row, Cell } from '@tanstack/react-table';
+import type { FetchingQueryState, QueriesState } from '@state/query';
+import type { Query } from '@appTypes/query';
 import type { SearchTermValues, SearchTermChangeValues } from '@appTypes/term';
 
+export interface QueryTableProps {
+  columns?: Array<ColumnDef<Query>>;
+}
+
 export type SearchTermMap = { [index: number]: SearchTermValues; };
+
+export type PageItem = {
+  value: number;
+  active: boolean;
+};
+
+export type PageItems = {
+  pages: Array<PageItem>;
+  showEllipsis: boolean;
+};
+
+export const queryTableColumnDefinitions: Array<ColumnDef<Query>> = [
+  {
+    accessorKey: 'platform',
+    header: 'Platform',
+    cell: ({ row }: CellContext<Query, unknown>): ReactElement<FC> => (
+      <span className="capitalize">{row.getValue('platform')}</span>
+    )
+  },
+  {
+    accessorKey: 'status',
+    header: 'Status',
+    cell: ({ row }: CellContext<Query, unknown>): ReactElement<FC> => {
+      const status: string = row.getValue('status');
+      let badgeVariant: 'default' | 'secondary' | 'destructive' = 'default';
+
+      if (status.includes('IN_PROGRESS')) badgeVariant = 'secondary';
+      if (status.includes('INCOMPLETE')) badgeVariant = 'destructive';
+
+      return (
+        <Badge className="min-w-5 h-5 border-0 rounded-full font-mono tabular-nums" variant={badgeVariant}>
+          {status}
+        </Badge>
+      );
+    }
+  },
+  {
+    accessorKey: 'createdAt',
+    header: 'Date',
+    cell: ({ row }: CellContext<Query, unknown>): ReactElement<FC> => (
+      <span className="capitalize">{row.getValue('createdAt')}</span>
+    )
+  },
+  {
+    accessorKey: 'percentage',
+    header: 'Completed %',
+    cell: ({ row }: CellContext<Query, unknown>): ReactElement<FC> => (
+      <span className="capitalize">{Math.round((row.getValue('percentage') as number) * 100)}</span>
+    )
+  }
+];
 
 export function QueryBuilder(): ReactElement<FC> {
   const [submitDisabled, setSubmitDisabled] = useState<boolean>(false);
@@ -220,9 +286,137 @@ export function QueryBuilder(): ReactElement<FC> {
   );
 }
 
-export function QueryTable(): ReactElement<FC> {
+export function QueryTable({ columns }: QueryTableProps): ReactElement<FC> {
+  const queries = useQueries((state: QueriesState): Array<Query> => state.queries);
+  const table = useReactTable({
+    data: queries,
+    columns: columns != null ? columns : queryTableColumnDefinitions,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+  });
+  const paginationItems = useMemo((): PageItems => {
+    const pageCount: number = table.getPageCount();
+
+    if (pageCount <= 1) return {
+      pages: [{ value: 0, active: true }],
+      showEllipsis: false
+    };
+
+    const pageIndex: number = table.getState().pagination.pageIndex;
+    const maxVisible: number = 3;
+    const pages: Array<PageItem> = [];
+    let start: number = pageIndex;
+    let end: number = pageIndex + maxVisible;
+
+    if (end > pageCount) {
+      end = pageCount;
+      start = Math.max(0, end - maxVisible);
+    }
+
+    for (let index: number = start; index < end; index++) {
+      pages.push({
+        value: index,
+        active: index === pageIndex
+      });
+    }
+
+    return {
+      pages,
+      showEllipsis: end < pageCount
+    };
+  }, [table.getState().pagination.pageIndex, table.getPageCount()]);
+
+  useEffect((): void => {
+    table.setPageSize(5);
+  }, []);
+
   return (
-    <Card></Card>
+    <Card className="col-span-8">
+      <CardHeader>
+        <CardTitle>Past Extractions</CardTitle>
+        <CardDescription>
+          Export complete requests, or finish and export the remainder of partially-complete requests
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-hidden border rounded-md">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup: HeaderGroup<Query>): ReactElement<FC> => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header: Header<Query, unknown>): ReactElement<FC> => {
+                    return (
+                      <TableHead key={header.id}>
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                      </TableHead>
+                    );
+                  })}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows?.length > 0 && table.getRowModel().rows.map((row: Row<Query>): ReactElement<FC> => (
+                <TableRow key={row.id}>
+                  {row.getVisibleCells().map((cell: Cell<Query, unknown>): ReactElement<FC> => (
+                    <TableCell key={cell.id}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+      <CardFooter className="justify-center space-x-2 py-4">
+        <Button
+          variant="link"
+          size="sm"
+          className="cursor-pointer"
+          onClick={() => table.previousPage()}
+          disabled={!table.getCanPreviousPage()}
+        >
+          <ChevronLeft />
+          Previous
+        </Button>
+        <ul>
+          {paginationItems.pages.map((item: PageItem): ReactElement<FC> => (
+            <li key={`${item.value}`}>
+              <Button
+                className="cursor-pointer"
+                size="sm"
+                variant={item.active ? 'outline' : 'link'}
+                onClick={(): void => table.setPageIndex(item.value)}>
+                {item.value + 1}
+              </Button>
+            </li>
+          ))}
+          {paginationItems.showEllipsis && (
+            <li key={`${paginationItems.pages.length}`}>
+              <Button variant="ghost" disabled>...</Button>
+            </li>
+          )}
+        </ul>
+        <Button
+          variant="link"
+          size="sm"
+          className="cursor-pointer"
+          onClick={() => table.nextPage()}
+          disabled={!table.getCanNextPage()}
+        >
+          Next
+          <ChevronRight />
+        </Button>
+      </CardFooter>
+    </Card>
   );
 }
 
