@@ -344,18 +344,14 @@ export function QueryTable({ columns }: QueryTableProps): ReactElement<FC> {
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup: HeaderGroup<Query>): ReactElement<FC> => (
                 <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header: Header<Query, unknown>): ReactElement<FC> => {
-                    return (
-                      <TableHead key={header.id}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                      </TableHead>
-                    );
-                  })}
+                  {headerGroup.headers.map((header: Header<Query, unknown>): ReactElement<FC> => (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder ? null : flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                    </TableHead>
+                  ))}
                 </TableRow>
               ))}
             </TableHeader>
