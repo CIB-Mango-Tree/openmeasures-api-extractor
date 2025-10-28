@@ -302,9 +302,9 @@ export function QueryTable({ columns }: QueryTableProps): ReactElement<FC> {
       showEllipsis: false
     };
 
+    const pages: Array<PageItem> = [];
     const pageIndex: number = table.getState().pagination.pageIndex;
     const maxVisible: number = 3;
-    const pages: Array<PageItem> = [];
     let start: number = pageIndex;
     let end: number = pageIndex + maxVisible;
 
