@@ -1,4 +1,5 @@
 from starlette.applications import Starlette
+from starlette.middleware.cors import CORSMiddleware
 from uvicorn import run
 from pyventus.events import AsyncIOEventEmitter
 from lagom import Container
@@ -24,7 +25,7 @@ from src.endpoints import (
     QueryExportEndpoint,
     UpdateStreamEndpoint,
 )
-from src.settings import HOST, PORT, DATABASE_URL
+from src.settings import HOST, PORT, DATABASE_URL, DEBUG
 import src.log
 
 
@@ -62,7 +63,8 @@ def main() -> None:
         query_limit_router.route("/api/limit", endpoint=QueryLimitEndpoint),
         websocket_router.ws_route("/api/ws/updates", endpoint=UpdateStreamEndpoint),
     ]
-    app = Starlette(debug=True, routes=routes)
+    app = Starlette(debug=DEBUG, routes=routes)
+    app = CORSMiddleware(app=app, allow_origins=["*"])
     limit = query_limit_repo.find()
 
     if limit is None:
@@ -70,7 +72,7 @@ def main() -> None:
 
         query_limit_repo.create(limit)
 
-    run(app, host=HOST, port=PORT, use_colors=True, log_config=None)
+    run(app, host=HOST, port=PORT, use_colors=DEBUG, log_config=None)
 
 
 if __name__ == "__main__":
