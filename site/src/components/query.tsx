@@ -1,17 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { flexRender, getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
+import { format } from 'date-fns';
+import { useFetchingQueryState, useQueries } from '@lib/state/query';
+import { cn } from '@lib/utils';
 import { Sheet, FileJson2, FileSpreadsheet, SquarePlus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent, CardFooter } from '@components/ui/card';
 import { Field, FieldLabel, FieldSet, FieldGroup } from '@components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
 import { Button } from '@components/ui/button';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@components/ui/dropdown-menu';
 import { Badge } from '@components/ui/badge';
@@ -19,9 +15,7 @@ import { Progress } from '@components/ui/progress';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@components/ui/tooltip';
 import DateTimePicker from '@components/date-time-picker';
 import SearchTermInput from '@components/search-term-input';
-import { GETQueries, POSTQuery } from '@lib/fetch/query';
-import { useFetchingQueryState, useQueries } from '@lib/state/query';
-import { QUERY_COMPLETE } from '@constants/status';
+import { QUERY_COMPLETE, FETCH_INCOMPLETE, CLEAN_INCOMPLETE, PARSE_INCOMPLETE } from '@constants/status';
 import type { ReactElement, FC, FormEvent } from 'react';
 import type { ColumnDef, CellContext, HeaderGroup, Header, Row, Cell } from '@tanstack/react-table';
 import type { FetchingQueryState, QueriesState } from '@state/query';
@@ -57,31 +51,36 @@ export const queryTableColumnDefinitions: Array<ColumnDef<Query>> = [
     header: 'Status',
     cell: ({ row }: CellContext<Query, unknown>): ReactElement<FC> => {
       const status: string = row.getValue('status');
-      let badgeVariant: 'default' | 'secondary' | 'destructive' = 'default';
+      const badgeClasses: string = cn({
+        'bg-green-600/10 text-green-600': status === QUERY_COMPLETE,
+        'bg-red-600/10 text-red-600': status === FETCH_INCOMPLETE || status === CLEAN_INCOMPLETE || status === PARSE_INCOMPLETE,
+        'bg-zinc-600/10 text-zinc-600': status !== QUERY_COMPLETE && status !== FETCH_INCOMPLETE && status !== CLEAN_INCOMPLETE && status !== PARSE_INCOMPLETE,
+      }, 'min-w-5 h-5 border-0 rounded-full font-bold tabular-nums');
 
-      if (status.includes('IN_PROGRESS')) badgeVariant = 'secondary';
-      if (status.includes('INCOMPLETE')) badgeVariant = 'destructive';
-
-      return (
-        <Badge className="min-w-5 h-5 border-0 rounded-full font-mono tabular-nums" variant={badgeVariant}>
-          {status}
-        </Badge>
-      );
+      return <Badge className={badgeClasses}>{status}</Badge>;
     }
   },
   {
     accessorKey: 'createdAt',
     header: 'Date',
-    cell: ({ row }: CellContext<Query, unknown>): ReactElement<FC> => (
-      <span className="capitalize">{row.getValue('createdAt')}</span>
-    )
+    cell: ({ row }: CellContext<Query, unknown>): ReactElement<FC> => {
+      const date = new Date(row.getValue('createdAt'));
+
+      return <span className="capitalize">{format(date, 'yyyy/MM/dd')}</span>;
+    }
   },
   {
     accessorKey: 'percentage',
     header: 'Completed %',
     cell: ({ row }: CellContext<Query, unknown>): ReactElement<FC> => (
-      <span className="capitalize">{Math.round((row.getValue('percentage') as number) * 100)}</span>
+      <span className="capitalize">{`${Math.round((row.getValue('percentage') as number) * 100)}%`}</span>
     )
+  },
+  {
+    id: 'query-toggle',
+    cell: ({ row }: CellContext<Query, unknown>): ReactElement<FC> => {
+      return <Button variant="secondary" className="cursor-pointer">Details</Button>;
+    }
   }
 ];
 
@@ -383,7 +382,7 @@ export function QueryTable({ columns }: QueryTableProps): ReactElement<FC> {
           <ChevronLeft />
           Previous
         </Button>
-        <ul>
+        <ul className="flex flex-row">
           {paginationItems.pages.map((item: PageItem): ReactElement<FC> => (
             <li key={`${item.value}`}>
               <Button

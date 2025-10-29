@@ -1,19 +1,23 @@
 import { create } from 'zustand';
 import { Query } from '@appTypes/query';
 
+export type SetQueryCallback = (query: Query) => void;
+export type SetQueriesCallback = (queries: Array<Query>) => void;
+export type QueryCallback = (query: Query) => void;
+
 export interface FetchingQueryState {
   query: Query | null;
   showProgress: boolean;
-  setQuery: (query: Query) => void;
+  setQuery: SetQueryCallback;
   removeQuery: () => void;
   toggleShow: () => void;
 }
 
 export interface QueriesState {
   queries: Array<Query>;
-  set: (queries: Array<Query>) => void;
-  push: (query: Query) => void;
-  update: (query: Query) => void;
+  set: SetQueriesCallback;
+  push: QueryCallback;
+  update: QueryCallback;
 }
 
 export const useFetchingQueryState = create<FetchingQueryState>((setState): FetchingQueryState => ({

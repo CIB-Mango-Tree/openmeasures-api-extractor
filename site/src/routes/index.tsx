@@ -1,8 +1,14 @@
+import { useEffect } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
+import { useQueries } from '@state/query';
+import { GETQueries } from '@lib/fetch/query';
 import Hero from '@components/hero';
 import { LimitCounter, LimitAlert } from '@components/limit';
 import { QueryBuilder, QueryResultView, QueryTable } from '@components/query';
 import type { ReactElement, FC } from 'react';
+import type { Query, QueryResponse } from '@appTypes/query';
+import type { APICollectionResponse } from '@appTypes/fetch';
+import type { QueriesState, SetQueriesCallback } from '@state/query';
 
 export const Route = createFileRoute('/')({
   ssr: true,
@@ -10,8 +16,32 @@ export const Route = createFileRoute('/')({
 })
 
 function App(): ReactElement<FC> {
+  const setQueries = useQueries((state: QueriesState): SetQueriesCallback => state.set);
+
+  useEffect((): void => {
+    const func = async (): Promise<void> => {
+      const apiResponse: APICollectionResponse<QueryResponse> = await GETQueries();
+
+      setQueries(apiResponse.data.map((item: QueryResponse): Query => ({
+        id: item.id,
+        createdAt: item.created_at,
+        updatedAt: item.updated_at,
+        platform: item.platform,
+        status: item.status,
+        timezone: item.timezone,
+        startDate: item.start_date,
+        endDate: item.end_date,
+        rowsFetched: item.rows_fetched,
+        percentage: item.percentage,
+        terms: item.terms
+      })));
+    };
+
+    func();
+  }, []);
+
   return (
-    <main className="grid grid-flow-row auto-rows-min gap-y-8 pt-8 px-52">
+    <main className="grid grid-flow-row auto-rows-min gap-y-8 py-8 px-52">
       <Hero />
       <section className="grid grid-flow-col grid-cols-12 gap-x-4">
         <LimitAlert />
