@@ -1,22 +1,32 @@
-import type { Query } from '@appTypes/query';
+import type { QueryResponse, CreateQueryPayload } from '@appTypes/query';
 import type { APICollectionResponse, APIResponse } from '@appTypes/fetch';
 
-type AsyncAPIQueryResponse = Promise<APIResponse<Query>>;
+type AsyncAPIQueryResponse = Promise<APIResponse<QueryResponse>>;
 type APIMessageResponse = APIResponse<{ message: string; }>;
 
-export async function GETQueries(): Promise<APICollectionResponse<Query>> {
+export async function GETQueries(): Promise<APICollectionResponse<QueryResponse>> {
   const response: Response = await fetch(`${import.meta.env.VITE_API_URL}/api/queries`, { method: 'GET' });
 
-  return await response.json() as APICollectionResponse<Query>;
+  return await response.json() as APICollectionResponse<QueryResponse>;
 }
 
 export async function GETQuery(id: string): AsyncAPIQueryResponse {
   const response: Response = await fetch(`${import.meta.env.VITE_API_URL}/api/queries/${id}`, { method: 'GET' });
 
-  return await response.json() as APIResponse<Query>;
+  return await response.json() as APIResponse<QueryResponse>;
 }
 
-export async function POSTQuery(data): AsyncAPIQueryResponse { }
+export async function POSTQuery(data: CreateQueryPayload): AsyncAPIQueryResponse {
+  const response: Response = await fetch(`${import.meta.env.VITE_API_URL}/api/queries`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(data)
+  });
+
+  return await response.json() as APIResponse<QueryResponse>;
+}
 
 export async function PATCHQuery(id: string, status: string): AsyncAPIQueryResponse {
   const response: Response = await fetch(`${import.meta.env.VITE_API_URL}/api/queries/${id}`, {
@@ -24,7 +34,7 @@ export async function PATCHQuery(id: string, status: string): AsyncAPIQueryRespo
     body: JSON.stringify({ status: status })
   });
 
-  return await response.json() as APIResponse<Query>;
+  return await response.json() as APIResponse<QueryResponse>;
 }
 
 export async function DELETEQuery(id: string): Promise<APIMessageResponse> {

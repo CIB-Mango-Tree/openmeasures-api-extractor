@@ -1,39 +1,44 @@
 import { FETCH_IN_PROGRESS, FETCH_INCOMPLETE, CLEAN_IN_PROGRESS, CLEAN_INCOMPLETE, PARSE_IN_PROGRESS, PARSE_INCOMPLETE, QUERY_COMPLETE } from '@constants/status';
+import { SearchTermModifier } from '@appTypes/term';
 
 export type QueryTerm = {
   term: string;
-  modifier: 'EQUAL' | 'AND' | 'OR';
+  modifier: SearchTermModifier;
 };
 
-export type QueryRequest = {
-  rowCount: number;
-  requests: Array<{ [index: string]: any; }>;
-};
+export type QueryStatus = typeof FETCH_IN_PROGRESS | typeof FETCH_INCOMPLETE | typeof CLEAN_IN_PROGRESS | typeof CLEAN_INCOMPLETE | typeof PARSE_IN_PROGRESS | typeof PARSE_INCOMPLETE | typeof QUERY_COMPLETE;
 
 export type Query = {
   id: string;
   createdAt: Date;
   updatedAt: Date | null;
   platform: string;
-  status: typeof FETCH_IN_PROGRESS | typeof FETCH_INCOMPLETE | typeof CLEAN_IN_PROGRESS | typeof CLEAN_INCOMPLETE | typeof PARSE_IN_PROGRESS | typeof PARSE_INCOMPLETE | typeof QUERY_COMPLETE;
+  status: QueryStatus;
   timezone: string;
   startDate: Date;
   endDate: Date;
   rowsFetched: number;
   percentage: number;
   terms: Array<QueryTerm>;
-  requests: Array<QueryRequest>;
 };
 
-export type QueryTermModifier = {
-  term: string;
-  modifier: 'AND' | 'OR';
+export type QueryResponse = {
+  id: string;
+  created_at: Date;
+  updated_at: Date | null;
+  platform: string;
+  status: QueryStatus;
+  timezone: string;
+  start_date: Date;
+  end_date: Date;
+  rows_fetched: number;
+  percentage: number;
+  terms: Array<QueryTerm>;
 };
 
 export type CreateQueryPayload = {
   start_date: Date;
   end_date: Date;
   platform: string;
-  term: string;
-  modifiers: Array<QueryTermModifier>;
+  terms: Array<QueryTerm>;
 };
