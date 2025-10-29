@@ -1,4 +1,5 @@
 from pandas import DataFrame
+from sqlalchemy.orm import joinedload
 from requests import get
 from pyventus.events import EventEmitter, EventLinker
 from asyncio import create_task, to_thread
@@ -183,7 +184,9 @@ class QueryService:
                     ),
                 )
 
-                query = self._query_repo.find_by_id(query.id)
+                query = self._query_repo.find_by_id(
+                    query.id, [joinedload(Query.terms), joinedload(Query.requests)]
+                )
 
                 if query is None:
                     break
@@ -303,7 +306,9 @@ class QueryService:
                 request.set_updated_at()
                 self._query_request_repo.update(request)
 
-            query = self._query_repo.find_by_id(query.id)
+            query = self._query_repo.find_by_id(
+                query.id, [joinedload(Query.terms), joinedload(Query.requests)]
+            )
 
             if query is None:
                 return None
@@ -374,7 +379,9 @@ class QueryService:
 
     def process_query(self, id: UUID) -> None:
         async def func() -> None:
-            query = self._query_repo.find_by_id(id)
+            query = self._query_repo.find_by_id(
+                id, [joinedload(Query.terms), joinedload(Query.requests)]
+            )
 
             if query is None:
                 return
@@ -421,19 +428,39 @@ class QueryService:
             logger.debug("Cancelling processing task for query: %s", str(id))
             task.cancel()
 
-    def get(self, imcomplete_only: bool = False) -> list[Query]:
-        return self._query_repo.find_all(imcomplete_only)
+    def get(self, include_requests: bool = False) -> list[Query]:
+        if include_requests:
+            return self._query_repo.find_all(
+                [joinedload(Query.terms), joinedload(Query.requests)]
+            )
 
-    def get_by_id(self, id: UUID) -> Query | None:
+        return self._query_repo.find_all()
+
+    def get_by_id(self, id: UUID, incldue_requests: bool = False) -> Query | None:
+        if incldue_requests:
+            return self._query_repo.find_by_id(
+                id, [joinedload(Query.terms), joinedload(Query.requests)]
+            )
+
         return self._query_repo.find_by_id(id)
 
-    def get_by_status(self, status: str) -> list[Query]:
+    def get_by_status(self, status: str, include_requests: bool = False) -> list[Query]:
+        if include_requests:
+            return self._query_repo.find_by_status(
+                status, [joinedload(Query.terms), joinedload(Query.requests)]
+            )
+
         return self._query_repo.find_by_status(status)
 
     def get_by_platform(
-        self, platform: str, imcomplete_only: bool = False
+        self, platform: str, incldue_requests: bool = False
     ) -> list[Query]:
-        return self._query_repo.find_by_platform(platform, imcomplete_only)
+        if incldue_requests:
+            return self._query_repo.find_by_platform(
+                platform, [joinedload(Query.terms), joinedload(Query.requests)]
+            )
+
+        return self._query_repo.find_by_platform(platform)
 
     def create(self, data: CreateQueryValidator) -> Query:
         query = Query(
@@ -445,19 +472,9 @@ class QueryService:
 
         self._query_repo.create(query)
 
-        terms = [QueryTerm(query_id=query.id, term=data.term)]
-
-        if data.term_modifiers is not None and len(data.term_modifiers) > 0:
-            terms.extend(
-                [
-                    QueryTerm(
-                        query_id=query.id,
-                        modifier=term_modifier.modifier,
-                        term=term_modifier.term,
-                    )
-                    for term_modifier in data.term_modifiers
-                ]
-            )
+        terms: list[QueryTerm] = [
+            QueryTerm(query_id=query.id, term=item.term) for item in data.terms
+        ]
 
         self._query_term_repo.batch_create(terms)
         self.process_query(query.id)

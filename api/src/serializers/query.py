@@ -2,7 +2,6 @@ from pydantic import UUID4
 from datetime import datetime
 from .base import BaseSerializer
 from .term import QueryTermSerializer
-from .request import QueryRequestSerializer
 
 
 class QuerySerializer(BaseSerializer):
@@ -18,4 +17,3 @@ class QuerySerializer(BaseSerializer):
     rows_fetched: int
     percentage: float
     terms: list[QueryTermSerializer] = []
-    requests: list[QueryRequestSerializer] = []

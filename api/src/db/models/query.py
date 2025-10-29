@@ -7,7 +7,7 @@ from datetime import datetime
 from .base import BaseModelWithTimestamp
 from .term import QueryTerm
 from .request import QueryRequest
-from ...utils.constants import EQ, FETCH_IN_PROGRESS
+from ...utils.constants import FETCH_IN_PROGRESS
 
 
 class Query(BaseModelWithTimestamp):
@@ -58,15 +58,13 @@ class Query(BaseModelWithTimestamp):
         if len(self.terms) == 0:
             return ""
 
-        base = next((term.term for term in self.terms if term.modifier == EQ), "")
-
-        if len(base) == 0:
-            return base
-
-        output = base
+        output: str = ""
 
         for term in self.terms:
-            if term.modifier != EQ:
-                output += f" {term.modifier} {term.term}"
+            output += (
+                f" {term.modifier} {term.term}"
+                if len(output) > 0
+                else f"{term.modifier} {term.term}"
+            )
 
         return output

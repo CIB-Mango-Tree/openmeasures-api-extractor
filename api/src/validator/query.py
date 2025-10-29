@@ -2,19 +2,33 @@ from pydantic import BaseModel, Field, UUID4, ValidationInfo, field_validator
 from pydantic_core import PydanticCustomError
 from tzlocal import get_localzone_name
 from .term import TermValidator
-from ..log import logger
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from zoneinfo import ZoneInfo
+from ..utils.constants import EQ
 
 
 class CreateQueryValidator(BaseModel):
     platform: str = Field(min_length=1)
-    term: str = Field(min_length=1)
-    term_modifiers: list[TermValidator] | None
+    terms: list[TermValidator]
     timezone: str | None = Field(default=get_localzone_name())
     end_date: datetime
     start_date: datetime
+
+    @field_validator("terms")
+    @classmethod
+    def validate_terms(cls, value: list[TermValidator]) -> list[TermValidator]:
+        if len(value) == 0:
+            raise PydanticCustomError(
+                "value_error", "At least one term must be provided"
+            )
+
+        if value[0].modifier != EQ:
+            raise PydanticCustomError(
+                "value_error", "The modifier for the first term must be set to EQUAL"
+            )
+
+        return value
 
     @field_validator("end_date")
     @classmethod
