@@ -1,13 +1,14 @@
 import { useMemo } from 'react';
 import { format } from 'date-fns';
 import { useSelectedQuery } from '@lib/state/query';
+import { cn } from '@lib/utils';
 import { Sheet, FileJson2, FileSpreadsheet } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter, DialogHeader } from '@components/ui/dialog';
 import { Button } from '@components/ui/button';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@components/ui/dropdown-menu';
 import { Badge } from '@components/ui/badge';
 import { Separator } from '@components/ui/separator';
-import { QUERY_COMPLETE } from '@constants/status';
+import { QUERY_COMPLETE, FETCH_INCOMPLETE, CLEAN_INCOMPLETE, PARSE_INCOMPLETE } from '@constants/status';
 import type { ReactElement, FC } from 'react';
 import type { SelectedQueryState } from '@state/query';
 
@@ -16,6 +17,19 @@ export function QueryDetailsDialog(): ReactElement<FC> {
   const baseUrl = useMemo((): string => `${import.meta.env.VITE_API_URL}/api/queries/${state.selectedQuery?.id}/download`, [state.selectedQuery]);
   const completedPercentage = useMemo((): number => state.selectedQuery != null ? Math.round(state.selectedQuery?.percentage * 100) : 0, [state.selectedQuery]);
   const handleDialogClose = (): void => state.clear();
+  const badgeClasses: string = cn({
+    'bg-green-600/10 text-green-600': state.selectedQuery?.status === QUERY_COMPLETE,
+    'bg-red-600/10 text-red-600': (
+      state.selectedQuery?.status === FETCH_INCOMPLETE || state.selectedQuery?.status === CLEAN_INCOMPLETE ||
+      state.selectedQuery?.status === PARSE_INCOMPLETE
+    ),
+    'bg-zinc-600/10 text-zinc-600': (
+      state.selectedQuery?.status !== QUERY_COMPLETE && state.selectedQuery?.status !== FETCH_INCOMPLETE && state.selectedQuery?.status !== CLEAN_INCOMPLETE &&
+      state.selectedQuery?.status !== PARSE_INCOMPLETE
+    ),
+  }, 'min-w-5 h-5 border-0 rounded-full font-bold tabular-nums ml-2');
+
+
 
   return (
     <Dialog open={state.selectedQuery != null}>
@@ -24,6 +38,7 @@ export function QueryDetailsDialog(): ReactElement<FC> {
           <DialogTitle>Extraction Details</DialogTitle>
           <DialogDescription className="capitalize">
             {state.selectedQuery?.platform}
+            <Badge className={badgeClasses}>{state.selectedQuery?.status}</Badge>
           </DialogDescription>
         </DialogHeader>
         <Separator />
