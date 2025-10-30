@@ -4,7 +4,10 @@ import { useQueries } from '@state/query';
 import { GETQueries } from '@lib/fetch/query';
 import Hero from '@components/hero';
 import { LimitCounter, LimitAlert } from '@components/limit';
-import { QueryBuilder, QueryResultView, QueryTable } from '@components/query';
+import { QueryBuilder } from '@components/builder';
+import { QueryTable } from '@components/table';
+import { QueryResultView } from '@components/results';
+import { QueryDetailsDialog } from '@components/details';
 import type { ReactElement, FC } from 'react';
 import type { Query, QueryResponse } from '@appTypes/query';
 import type { APICollectionResponse } from '@appTypes/fetch';
@@ -54,6 +57,7 @@ function App(): ReactElement<FC> {
       <section className="grid grid-flow-col grid-cols-12">
         <QueryTable />
       </section>
+      <QueryDetailsDialog />
     </main>
   )
 }
