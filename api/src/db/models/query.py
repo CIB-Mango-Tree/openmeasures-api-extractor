@@ -61,10 +61,6 @@ class Query(BaseModelWithTimestamp):
         output: str = ""
 
         for term in self.terms:
-            output += (
-                f" {term.modifier} {term.term}"
-                if len(output) > 0
-                else f"{term.modifier} {term.term}"
-            )
+            output += f" {term.modifier} {term.term}" if len(output) > 0 else term.term
 
         return output
