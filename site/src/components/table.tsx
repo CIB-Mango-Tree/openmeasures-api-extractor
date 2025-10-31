@@ -29,7 +29,7 @@ export type PageItems = {
 };
 
 export function QueryTable({ columns }: QueryTableProps): ReactElement<FC> {
-  const set = useSelectedQuery((state: SelectedQueryState): QueryCallback => state.set);
+  const set = useSelectedQuery((state: SelectedQueryState): QueryCallback => state.setQuery);
   const queries = useQueries((state: QueriesState): Array<Query> => state.queries);
   const queryTableColumnDefinitions = useMemo((): Array<ColumnDef<Query>> => ([
     {

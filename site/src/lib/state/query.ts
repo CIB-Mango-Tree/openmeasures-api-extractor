@@ -3,10 +3,14 @@ import { Query } from '@appTypes/query';
 
 export type SetQueriesCallback = (queries: Array<Query>) => void;
 export type QueryCallback = (query: Query) => void;
+export type CurrentViewType = 'details' | 'progress' | 'complete';
 
 export interface SelectedQueryState {
   selectedQuery: Query | null;
-  set: QueryCallback;
+  currentView: CurrentViewType;
+  setQuery: QueryCallback;
+  removeQuery: () => void;
+  setCurrentView: (view: CurrentViewType) => void;
   clear: () => void;
 }
 
@@ -16,6 +20,12 @@ export interface FetchingQueryState {
   setQuery: QueryCallback;
   removeQuery: () => void;
   toggleShow: () => void;
+}
+
+export interface AlertQueryState {
+  query: Query | null;
+  set: QueryCallback;
+  clear: () => void;
 }
 
 export interface QueriesState {
@@ -45,6 +55,15 @@ export const useQueries = create<QueriesState>((setState): QueriesState => ({
 
 export const useSelectedQuery = create<SelectedQueryState>((setState): SelectedQueryState => ({
   selectedQuery: null,
-  set: (query: Query): void => setState((state: SelectedQueryState): SelectedQueryState => ({ ...state, selectedQuery: query })),
-  clear: (): void => setState((state: SelectedQueryState): SelectedQueryState => ({ ...state, selectedQuery: null }))
+  currentView: 'details',
+  setQuery: (query: Query): void => setState((state: SelectedQueryState): SelectedQueryState => ({ ...state, selectedQuery: query })),
+  removeQuery: (): void => setState((state: SelectedQueryState): SelectedQueryState => ({ ...state, selectedQuery: null })),
+  setCurrentView: (view: CurrentViewType): void => setState((state: SelectedQueryState): SelectedQueryState => ({ ...state, currentView: view })),
+  clear: (): void => setState((state: SelectedQueryState): SelectedQueryState => ({ ...state, currentView: 'details', selectedQuery: null }))
+}));
+
+export const useAlertQuery = create<AlertQueryState>((setState): AlertQueryState => ({
+  query: null,
+  set: (query: Query): void => setState((state: AlertQueryState): AlertQueryState => ({ ...state, query })),
+  clear: (): void => setState((state: AlertQueryState): AlertQueryState => ({ ...state, query: null })),
 }));
