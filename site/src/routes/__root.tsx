@@ -1,6 +1,7 @@
 import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
 import Header from '@components/header';
-import appCss from '@/styles.css?url'
+import appCss from '@/styles.css?url';
+import type { ReactElement, FC } from 'react';
 
 export const Route = createRootRoute({
   head: () => ({
@@ -31,13 +32,13 @@ export const Route = createRootRoute({
   shellComponent: RootDocument,
 })
 
-function RootDocument({ children }: { children: React.ReactNode }) {
+function RootDocument({ children }: { children: React.ReactNode }): ReactElement<FC> {
   return (
     <html lang="en">
       <head>
         <HeadContent />
       </head>
-      <body className="grid grid-flow-row grid-rows-[auto_1fr_auto] col-span-full max-w-svw min-h-svh bg-zinc-50">
+      <body className="grid grid-flow-row grid-rows-[auto_1fr_auto] col-span-full max-w-svw min-h-svh bg-zinc-50 dark:bg-zinc-950">
         <Header />
         {children}
         <Scripts />
