@@ -30,10 +30,10 @@ export function LimitCounter(): ReactElement<FC> {
         <CardTitle className="font-normal">Queries left today</CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-xl text-muted-foreground font-bold">
-          <span className="text-zinc-900">{count}</span>
-          /39
-        </p>
+        <span className="text-xl font-bold">
+          {count}
+          <span className="text-muted-foreground">/39</span>
+        </span>
       </CardContent>
       <CardFooter>
         <p className="text-sm text-muted-foreground">{39 - count} used</p>

@@ -5,7 +5,7 @@ import type { ReactElement, FC } from 'react';
 
 export default function Header(): ReactElement<FC> {
   return (
-    <header className="grid grid-flow-col h-header-height w-full items-center justify-between bg-zinc-300 py-4 px-52">
+    <header className="grid grid-flow-col h-header-height w-full items-center justify-between bg-zinc-300 dark:bg-zinc-500 py-4 px-52">
       <div className="grid grid-flow-col items-center">
         <Link to="/">
           <Image

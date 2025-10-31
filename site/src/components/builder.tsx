@@ -68,7 +68,12 @@ export function QueryBuilder(): ReactElement<FC> {
         <CardTitle>Start Here</CardTitle>
         <CardDescription>Narrow down your search with filters below</CardDescription>
         <CardAction className="self-center">
-          <Button onClick={handleClear} disabled={submitDisabled || isStateEmpty}>Clear All</Button>
+          <Button
+            onClick={handleClear}
+            disabled={submitDisabled || isStateEmpty}
+            className="cursor-pointer">
+            Clear All
+          </Button>
         </CardAction>
       </CardHeader>
       <CardContent>

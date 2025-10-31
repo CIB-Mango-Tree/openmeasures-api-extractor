@@ -1,5 +1,7 @@
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
+import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router';
+import { ThemeProvider } from '@components/theme-provider';
 import Header from '@components/header';
+import { ModeToggle } from '@components/mode-toggle';
 import appCss from '@/styles.css?url';
 import type { ReactElement, FC } from 'react';
 
@@ -34,13 +36,18 @@ export const Route = createRootRoute({
 
 function RootDocument({ children }: { children: React.ReactNode }): ReactElement<FC> {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
       <body className="grid grid-flow-row grid-rows-[auto_1fr_auto] col-span-full max-w-svw min-h-svh bg-zinc-50 dark:bg-zinc-950">
-        <Header />
-        {children}
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <Header />
+          {children}
+          <footer className="grid grid-flow-col justify-end px-4 pb-4">
+            <ModeToggle />
+          </footer>
+        </ThemeProvider>
         <Scripts />
       </body>
     </html>
