@@ -21,8 +21,10 @@ export function QueryBuilder(): ReactElement<FC> {
   const [searchTerms, setSearchTerms] = useState<SearchTermMap>({
     0: { modifier: 'EQUAL', term: '' }
   });
-  const isStateEmpty: boolean = timezone.length === 0 && platform.length === 0 &&
-    startDate == null && endDate == null && Object.keys(searchTerms).length === 1 && searchTerms[0].term.length === 0;
+  const isStateEmpty: boolean = (
+    timezone.length === 0 && platform.length === 0 && startDate == null && endDate == null &&
+    Object.keys(searchTerms).length === 1 && searchTerms[0].term.length === 0
+  );
   const handleStartDateChange = (date?: Date): void => setStartDate(date);
   const handleEndDateChange = (date?: Date): void => setEndDate(date);
   const handleSearchTermChange = (changeValues: SearchTermChangeValues): void => {
@@ -176,14 +178,16 @@ export function QueryBuilder(): ReactElement<FC> {
                   const index: number = parseInt(item[0]);
                   const entry: SearchTermValues = item[1];
 
-                  if (index === 0) return <SearchTermInput key={index}
+                  if (index === 0) return <SearchTermInput
+                    key={index}
                     index={index}
                     disabled={submitDisabled}
                     modifier={entry.modifier}
                     term={entry.term}
                     onChange={handleSearchTermChange} />;
 
-                  return <SearchTermInput key={index}
+                  return <SearchTermInput
+                    key={index}
                     index={index}
                     disabled={submitDisabled}
                     modifier={entry.modifier}
@@ -195,7 +199,12 @@ export function QueryBuilder(): ReactElement<FC> {
                 <Field orientation="horizontal">
                   <Tooltip delayDuration={1000}>
                     <TooltipTrigger asChild>
-                      <Button type="button" variant="link" className="cursor-pointer has-[>svg]:px-0 p-0" disabled={submitDisabled} onClick={handleSearchTermAdd}>
+                      <Button
+                        type="button"
+                        variant="link"
+                        className="cursor-pointer has-[>svg]:px-0 p-0"
+                        disabled={submitDisabled}
+                        onClick={handleSearchTermAdd}>
                         <SquarePlus className="size-6" />
                       </Button>
                     </TooltipTrigger>

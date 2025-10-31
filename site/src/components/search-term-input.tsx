@@ -51,8 +51,9 @@ export default function SearchTermInput({ index, modifier, term, onChange, disab
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="EQUAL">Contains</SelectItem>
-          <SelectItem value="AND">Also Contains</SelectItem>
-          <SelectItem value="OR">Or Contains</SelectItem>
+          <SelectItem value="AND" disabled={index === 0}>Also Contains</SelectItem>
+          <SelectItem value="OR" disabled={index === 0}>Or Contains</SelectItem>
+          <SelectItem value="NOT" disabled={index === 0}>Does Not Contain</SelectItem>
         </SelectContent>
       </Select>
       <Input type="text"
