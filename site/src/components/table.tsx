@@ -45,9 +45,9 @@ export function QueryTable({ columns }: QueryTableProps): ReactElement<FC> {
       cell: ({ row }: CellContext<Query, unknown>): ReactElement<FC> => {
         const status: string = row.getValue('status');
         const badgeClasses: string = cn({
-          'bg-green-600/10 text-green-600': status === QUERY_COMPLETE,
-          'bg-red-600/10 text-red-600': status === FETCH_INCOMPLETE || status === CLEAN_INCOMPLETE || status === PARSE_INCOMPLETE,
-          'bg-zinc-600/10 text-zinc-600': status !== QUERY_COMPLETE && status !== FETCH_INCOMPLETE && status !== CLEAN_INCOMPLETE && status !== PARSE_INCOMPLETE,
+          'bg-green-600/10 text-green-600 dark:bg-green-400/20': status === QUERY_COMPLETE,
+          'bg-red-600/10 text-red-600 dark:bg-red-400/20': status === FETCH_INCOMPLETE || status === CLEAN_INCOMPLETE || status === PARSE_INCOMPLETE,
+          'bg-zinc-600/10 text-zinc-600 dark:bg-zinc-400/20': status !== QUERY_COMPLETE && status !== FETCH_INCOMPLETE && status !== CLEAN_INCOMPLETE && status !== PARSE_INCOMPLETE,
         }, 'min-w-5 h-5 border-0 rounded-full font-bold tabular-nums');
 
         return <Badge className={badgeClasses}>{status}</Badge>;

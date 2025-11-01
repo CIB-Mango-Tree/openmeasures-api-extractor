@@ -18,12 +18,12 @@ export function QueryDetailsHeader(): ReactElement<FC> {
   const selectedQuery = useSelectedQuery((state: SelectedQueryState): Query | null => state.selectedQuery);
   const currentView = useSelectedQuery((state: SelectedQueryState): CurrentViewType => state.currentView);
   const badgeClasses: string = cn({
-    'bg-green-600/10 text-green-600': selectedQuery?.status === QUERY_COMPLETE,
-    'bg-red-600/10 text-red-600': (
+    'bg-green-600/10 text-green-600 dark:bg-green-400/20': selectedQuery?.status === QUERY_COMPLETE,
+    'bg-red-600/10 text-red-600 dark:bg-red-400/20': (
       selectedQuery?.status === FETCH_INCOMPLETE || selectedQuery?.status === CLEAN_INCOMPLETE ||
       selectedQuery?.status === PARSE_INCOMPLETE
     ),
-    'bg-zinc-600/10 text-zinc-600': (
+    'bg-zinc-600/10 text-zinc-600 dark:bg-zinc-400/20': (
       selectedQuery?.status !== QUERY_COMPLETE && selectedQuery?.status !== FETCH_INCOMPLETE && selectedQuery?.status !== CLEAN_INCOMPLETE &&
       selectedQuery?.status !== PARSE_INCOMPLETE
     ),
