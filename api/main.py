@@ -1,4 +1,5 @@
 from starlette.applications import Starlette
+from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 from uvicorn import run
 from pyventus.events import AsyncIOEventEmitter
@@ -63,8 +64,18 @@ def main() -> None:
         query_limit_router.route("/api/limit", endpoint=QueryLimitEndpoint),
         websocket_router.ws_route("/api/ws/updates", endpoint=UpdateStreamEndpoint),
     ]
-    app = Starlette(debug=DEBUG, routes=routes)
-    app = CORSMiddleware(app=app, allow_origins=["*"])
+    app = Starlette(
+        debug=DEBUG,
+        routes=routes,
+        middleware=[
+            Middleware(
+                CORSMiddleware,
+                allow_origins=["*"],
+                allow_methods=["*"],
+                allow_headers=["*"],
+            )
+        ],
+    )
     limit = query_limit_repo.find()
 
     if limit is None:
