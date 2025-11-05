@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { SquarePlus } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent } from '@components/ui/card';
 import { Field, FieldLabel, FieldSet, FieldGroup } from '@components/ui/field';
@@ -15,20 +15,26 @@ export type SearchTermStateValues = SearchTermValues & { first?: boolean; };
 export type SearchTermMap = { [index: string]: SearchTermValues; };
 
 export function QueryBuilder(): ReactElement<FC> {
+  const defaultTimezone = useMemo<string>((): string => (
+    new Intl
+      .DateTimeFormat('en-US', { timeZoneName: 'long' })
+      .formatToParts(new Date())
+      .find((item: Intl.DateTimeFormatPart): boolean => item.type === 'timeZoneName')?.value as string
+  ), []);
   const [submitDisabled, setSubmitDisabled] = useState<boolean>(false);
-  const [timezone, setTimezone] = useState<string>('');
+  const [timezone, setTimezone] = useState<string>(defaultTimezone);
   const [platform, setPlatform] = useState<string>('');
-  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
   const [searchTerms, setSearchTerms] = useState<SearchTermMap>({
     'default': { modifier: EQ, term: '' }
   });
   const isStateEmpty: boolean = (
-    timezone.length === 0 && platform.length === 0 && startDate == null && endDate == null &&
+    (timezone.length === 0 || timezone === defaultTimezone) && platform.length === 0 && startDate == null && endDate == null &&
     Object.keys(searchTerms).length === 1 && searchTerms['default'].term.length === 0
   );
-  const handleStartDateChange = (date?: Date): void => setStartDate(date);
-  const handleEndDateChange = (date?: Date): void => setEndDate(date);
+  const handleStartDateChange = (date?: Date): void => setStartDate(date || null);
+  const handleEndDateChange = (date?: Date): void => setEndDate(date || null);
   const handleSearchTermChange = (changeValues: SearchTermChangeValues): void => {
     setSearchTerms((state: SearchTermMap): SearchTermMap => ({
       ...state,
@@ -49,11 +55,11 @@ export function QueryBuilder(): ReactElement<FC> {
     }));
   };
   const handleClear = (): void => {
-    if (timezone.length > 0) setTimezone('');
-    if (startDate != null) setStartDate(undefined);
-    if (endDate != null) setEndDate(undefined);
+    if (timezone.length > 0 && timezone !== defaultTimezone) setTimezone(defaultTimezone);
+    if (startDate != null) setStartDate(null);
+    if (endDate != null) setEndDate(null);
     if (platform.length > 0) setPlatform('');
-    if (Object.keys(searchTerms).length > 1 || searchTerms[0].term.length > 0) setSearchTerms({
+    if (Object.keys(searchTerms).length > 1 || searchTerms['default'].term.length > 0) setSearchTerms({
       ['default']: { modifier: EQ, term: '' }
     });
   };
@@ -63,7 +69,7 @@ export function QueryBuilder(): ReactElement<FC> {
   };
 
   return (
-    <Card className="col-span-8">
+    <Card className="col-span-8" suppressHydrationWarning>
       <CardHeader>
         <CardTitle>Start Here</CardTitle>
         <CardDescription>Narrow down your search with filters below</CardDescription>

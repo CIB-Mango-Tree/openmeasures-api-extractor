@@ -13,7 +13,7 @@ import {
 import type { ReactElement, FC, ChangeEvent } from 'react';
 
 export interface DateTimePickerProps {
-  value?: Date;
+  value: Date | null;
   onChange?: (value: Date) => void;
   disabled?: boolean;
 }
@@ -21,10 +21,10 @@ export interface DateTimePickerProps {
 export default function DateTimePicker({ value, disabled, onChange }: DateTimePickerProps): ReactElement<FC> {
   const [mounted, setMounted] = useState<boolean>(false);
   const [open, setOpen] = useState(false);
-  const [date, setDate] = useState<Date | undefined>(undefined);
+  const [date, setDate] = useState<Date | null>(null);
   const [time, setTime] = useState<string>('00:00:00');
   const handleDateSelect = (date?: Date): void => {
-    setDate(date);
+    setDate(date || null);
     setOpen(false);
   };
   const handleTimeChange = (event: ChangeEvent<HTMLInputElement>): void => {
@@ -43,7 +43,7 @@ export default function DateTimePicker({ value, disabled, onChange }: DateTimePi
   useEffect((): void => {
     if (value == null && date == null) return;
     if (value == null && date != null) {
-      setDate(undefined);
+      setDate(null);
       setTime('00:00:00');
       return;
     }
@@ -86,7 +86,7 @@ export default function DateTimePicker({ value, disabled, onChange }: DateTimePi
         <PopoverContent className="w-auto overflow-hidden p-0" align="start">
           <Calendar
             mode="single"
-            selected={date}
+            selected={date != null ? date : undefined}
             captionLayout="dropdown"
             disabled={disabled}
             onSelect={handleDateSelect}
@@ -96,6 +96,7 @@ export default function DateTimePicker({ value, disabled, onChange }: DateTimePi
       <Input
         type="time"
         step="1"
+        autoComplete="off"
         value={time}
         onChange={handleTimeChange}
         disabled={disabled}
