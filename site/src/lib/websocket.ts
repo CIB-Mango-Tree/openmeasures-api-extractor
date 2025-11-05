@@ -1,20 +1,20 @@
 import type { EventMessage } from '@appTypes/event';
 
 export default class WebSocketConnection {
-  private socket: WebSocket;
+  public socket: WebSocket;
   private eventManager: EventTarget;
-  private messageHandler: (event: MessageEvent) => void;
 
-  constructor(socket: WebSocket) {
-    this.socket = socket;
+  constructor(url: string) {
+    this.socket = new WebSocket(url);
     this.eventManager = new EventTarget();
-    this.messageHandler = (event: MessageEvent): void => {
-      const message = event.data as EventMessage;
-
-      this.eventManager.dispatchEvent(new CustomEvent(message.event, { detail: message.data }));
-    };
 
     this.socket.addEventListener("message", this.messageHandler);
+  }
+
+  private messageHandler(event: MessageEvent): void {
+    const message = event.data as EventMessage;
+
+    this.eventManager.dispatchEvent(new CustomEvent(message.event, { detail: message.data }));
   }
 
   public on(event: string, callback: (event: Event) => void): void {
