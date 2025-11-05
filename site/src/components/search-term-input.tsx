@@ -5,7 +5,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Tooltip, TooltipTrigger, TooltipContent } from '@components/ui/tooltip';
 import { Delete } from 'lucide-react';
 import { cn } from '@lib/utils';
-import { EQ, AND, OR, NOT } from '@lib/constants/modifiers';
+import { EQ, AND, OR, NOT } from '@constants/modifiers';
 import type { ReactElement, FC, ChangeEvent } from 'react';
 import type { SearchTermChangeValues, SearchTermModifier } from '@appTypes/term';
 

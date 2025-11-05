@@ -7,7 +7,7 @@ import { Button } from '@components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@components/ui/tooltip';
 import DateTimePicker from '@components/date-time-picker';
 import SearchTermInput from '@components/search-term-input';
-import { EQ } from '@lib/constants/modifiers';
+import { EQ } from '@constants/modifiers';
 import type { ReactElement, FC, FormEvent } from 'react';
 import type { SearchTermValues, SearchTermChangeValues } from '@appTypes/term';
 
