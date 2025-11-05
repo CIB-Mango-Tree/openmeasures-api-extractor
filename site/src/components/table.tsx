@@ -1,18 +1,22 @@
-import { useEffect, useMemo } from 'react';
-import { flexRender, getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
+import { useEffect, useState, useMemo } from 'react';
+import { flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import { useQueries, useSelectedQuery } from '@lib/state/query';
 import { cn } from '@lib/utils';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronsUpDown } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
 import { Button } from '@components/ui/button';
 import { Badge } from '@components/ui/badge';
 import { QUERY_COMPLETE, FETCH_INCOMPLETE, CLEAN_INCOMPLETE, PARSE_INCOMPLETE } from '@constants/status';
-import type { ReactElement, FC } from 'react';
-import type { ColumnDef, CellContext, HeaderGroup, Header, Row, Cell } from '@tanstack/react-table';
+import type { ReactElement, FC, PropsWithChildren } from 'react';
+import type { ColumnDef, Column, CellContext, HeaderGroup, Header, HeaderContext, Row, Cell, SortingState } from '@tanstack/react-table';
 import type { QueriesState, SelectedQueryState, QueryCallback } from '@state/query';
 import type { Query } from '@appTypes/query';
+
+export interface QueryTableColumnHeaderProps {
+  column: Column<Query, unknown>;
+}
 
 export interface QueryTableProps {
   columns?: Array<ColumnDef<Query>>;
@@ -28,20 +32,37 @@ export type PageItems = {
   showEllipsis: boolean;
 };
 
+export function QueryTableColumnHeader({ column, children }: PropsWithChildren<QueryTableColumnHeaderProps>): ReactElement<FC> {
+  return (
+    <Button
+      variant="ghost"
+      className="cursor-pointer"
+      onClick={(): void => column.toggleSorting(column.getIsSorted() === 'asc')}>
+      {children}
+      <ChevronsUpDown />
+    </Button>
+  );
+}
+
 export function QueryTable({ columns }: QueryTableProps): ReactElement<FC> {
+  const [sortingState, setSortingState] = useState<SortingState>([]);
   const set = useSelectedQuery((state: SelectedQueryState): QueryCallback => state.setQuery);
   const queries = useQueries((state: QueriesState): Array<Query> => state.queries);
   const queryTableColumnDefinitions = useMemo((): Array<ColumnDef<Query>> => ([
     {
       accessorKey: 'platform',
-      header: 'Platform',
+      header: ({ column }: HeaderContext<Query, unknown>): ReactElement<FC> => (
+        <QueryTableColumnHeader column={column}>Platform</QueryTableColumnHeader>
+      ),
       cell: ({ row }: CellContext<Query, unknown>): ReactElement<FC> => (
         <span className="capitalize">{row.getValue('platform')}</span>
       )
     },
     {
       accessorKey: 'status',
-      header: 'Status',
+      header: ({ column }: HeaderContext<Query, unknown>): ReactElement<FC> => (
+        <QueryTableColumnHeader column={column}>Status</QueryTableColumnHeader>
+      ),
       cell: ({ row }: CellContext<Query, unknown>): ReactElement<FC> => {
         const status: string = row.getValue('status');
         const badgeClasses: string = cn({
@@ -55,7 +76,9 @@ export function QueryTable({ columns }: QueryTableProps): ReactElement<FC> {
     },
     {
       accessorKey: 'createdAt',
-      header: 'Date',
+      header: ({ column }: HeaderContext<Query, unknown>): ReactElement<FC> => (
+        <QueryTableColumnHeader column={column}>Date</QueryTableColumnHeader>
+      ),
       cell: ({ row }: CellContext<Query, unknown>): ReactElement<FC> => {
         const date = new Date(row.getValue('createdAt'));
 
@@ -64,7 +87,9 @@ export function QueryTable({ columns }: QueryTableProps): ReactElement<FC> {
     },
     {
       accessorKey: 'percentage',
-      header: 'Completed %',
+      header: ({ column }: HeaderContext<Query, unknown>): ReactElement<FC> => (
+        <QueryTableColumnHeader column={column}>Completed %</QueryTableColumnHeader>
+      ),
       cell: ({ row }: CellContext<Query, unknown>): ReactElement<FC> => (
         <span className="capitalize">{`${Math.round((row.getValue('percentage') as number) * 100)}%`}</span>
       )
@@ -86,6 +111,11 @@ export function QueryTable({ columns }: QueryTableProps): ReactElement<FC> {
     columns: columns != null ? columns : queryTableColumnDefinitions,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    onSortingChange: setSortingState,
+    state: {
+      sorting: sortingState
+    }
   });
   const paginationItems = useMemo((): PageItems => {
     const pageCount: number = table.getPageCount();
