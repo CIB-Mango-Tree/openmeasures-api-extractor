@@ -5,27 +5,29 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Tooltip, TooltipTrigger, TooltipContent } from '@components/ui/tooltip';
 import { Delete } from 'lucide-react';
 import { cn } from '@lib/utils';
+import { EQ, AND, OR, NOT } from '@lib/constants/modifiers';
 import type { ReactElement, FC, ChangeEvent } from 'react';
 import type { SearchTermChangeValues, SearchTermModifier } from '@appTypes/term';
 
 
 export interface SearchTermInputProps {
-  index: number;
+  index: string;
   modifier: SearchTermModifier | '';
   term: string;
   onChange: (values: SearchTermChangeValues) => void;
   disabled?: boolean;
-  showDeleteButton?: boolean;
-  onButtonCLick?: (key: number) => void;
+  onButtonCLick?: (key: string) => void;
 };
 
-export default function SearchTermInput({ index, modifier, term, onChange, disabled, showDeleteButton, onButtonCLick }: SearchTermInputProps): ReactElement<FC> {
+export default function SearchTermInput({ index, modifier, term, onChange, disabled = false, onButtonCLick }: SearchTermInputProps): ReactElement<FC> {
+  const isDefault: boolean = index === 'default';
   const inputClasses: string = cn({
-    'w-1/2': !showDeleteButton,
-    'w-[42.75%]': showDeleteButton
+    'w-1/2': isDefault,
+    'w-[42.75%]': !isDefault
   });
   const handleSelect = (value: string): void => {
-    if (value !== modifier) onChange({
+    if (value === modifier) return;
+    onChange({
       index,
       term,
       modifier: value as SearchTermModifier
@@ -33,7 +35,9 @@ export default function SearchTermInput({ index, modifier, term, onChange, disab
   };
   const handleChange = (event: ChangeEvent<HTMLInputElement>): void => {
     const value = event.currentTarget.value;
-    if (value != term) onChange({
+    if (value === term) return;
+
+    onChange({
       index,
       modifier,
       term: value
@@ -50,10 +54,10 @@ export default function SearchTermInput({ index, modifier, term, onChange, disab
           <SelectValue placeholder="Select Modifier" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="EQUAL">Contains</SelectItem>
-          <SelectItem value="AND" disabled={index === 0}>Also Contains</SelectItem>
-          <SelectItem value="OR" disabled={index === 0}>Or Contains</SelectItem>
-          <SelectItem value="NOT" disabled={index === 0}>Does Not Contain</SelectItem>
+          <SelectItem value={EQ}>Contains</SelectItem>
+          <SelectItem value={NOT}>Does Not Contain</SelectItem>
+          <SelectItem value={AND} disabled={isDefault}>Also Contains</SelectItem>
+          <SelectItem value={OR} disabled={isDefault}>Or Contains</SelectItem>
         </SelectContent>
       </Select>
       <Input type="text"
@@ -63,7 +67,7 @@ export default function SearchTermInput({ index, modifier, term, onChange, disab
         value={term}
         onChange={handleChange}
         className={inputClasses} />
-      {showDeleteButton && (
+      {!isDefault && (
         <Tooltip delayDuration={1000}>
           <TooltipTrigger asChild>
             <Button variant="link" className="cursor-pointer" disabled={disabled} onClick={handleDeleteClick}>

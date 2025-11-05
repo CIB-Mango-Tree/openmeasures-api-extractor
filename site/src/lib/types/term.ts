@@ -1,4 +1,6 @@
-export type SearchTermModifier = 'EQUAL' | 'AND' | 'OR';
+import { EQ, AND, OR, NOT } from '@lib/constants/modifiers';
+
+export type SearchTermModifier = typeof EQ | typeof AND | typeof OR | typeof NOT;
 
 export type SearchTermValues = {
   modifier: SearchTermModifier | '';
@@ -6,5 +8,5 @@ export type SearchTermValues = {
 };
 
 export type SearchTermChangeValues = SearchTermValues & {
-  index: number;
+  index: string;
 };

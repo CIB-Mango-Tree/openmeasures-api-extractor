@@ -7,10 +7,12 @@ import { Button } from '@components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@components/ui/tooltip';
 import DateTimePicker from '@components/date-time-picker';
 import SearchTermInput from '@components/search-term-input';
+import { EQ } from '@lib/constants/modifiers';
 import type { ReactElement, FC, FormEvent } from 'react';
 import type { SearchTermValues, SearchTermChangeValues } from '@appTypes/term';
 
-export type SearchTermMap = { [index: number]: SearchTermValues; };
+export type SearchTermStateValues = SearchTermValues & { first?: boolean; };
+export type SearchTermMap = { [index: string]: SearchTermValues; };
 
 export function QueryBuilder(): ReactElement<FC> {
   const [submitDisabled, setSubmitDisabled] = useState<boolean>(false);
@@ -19,11 +21,11 @@ export function QueryBuilder(): ReactElement<FC> {
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [searchTerms, setSearchTerms] = useState<SearchTermMap>({
-    0: { modifier: 'EQUAL', term: '' }
+    'default': { modifier: EQ, term: '' }
   });
   const isStateEmpty: boolean = (
     timezone.length === 0 && platform.length === 0 && startDate == null && endDate == null &&
-    Object.keys(searchTerms).length === 1 && searchTerms[0].term.length === 0
+    Object.keys(searchTerms).length === 1 && searchTerms['default'].term.length === 0
   );
   const handleStartDateChange = (date?: Date): void => setStartDate(date);
   const handleEndDateChange = (date?: Date): void => setEndDate(date);
@@ -33,7 +35,7 @@ export function QueryBuilder(): ReactElement<FC> {
       [changeValues.index]: { modifier: changeValues.modifier, term: changeValues.term }
     }));
   };
-  const handleSearchTermDelete = (key: number): void => {
+  const handleSearchTermDelete = (key: string): void => {
     setSearchTerms((state: SearchTermMap): SearchTermMap => {
       const { [key]: _, ...terms } = state;
 
@@ -41,14 +43,10 @@ export function QueryBuilder(): ReactElement<FC> {
     });
   };
   const handleSearchTermAdd = (): void => {
-    setSearchTerms((state: SearchTermMap): SearchTermMap => {
-      const maxKey: number = Math.max(...Object.keys(state).map(Number)) + 1;
-
-      return {
-        ...state,
-        [maxKey]: { modifier: '', term: '' }
-      };
-    });
+    setSearchTerms((state: SearchTermMap): SearchTermMap => ({
+      ...state,
+      [self.crypto.randomUUID()]: { modifier: '', term: '' }
+    }));
   };
   const handleClear = (): void => {
     if (timezone.length > 0) setTimezone('');
@@ -56,7 +54,7 @@ export function QueryBuilder(): ReactElement<FC> {
     if (endDate != null) setEndDate(undefined);
     if (platform.length > 0) setPlatform('');
     if (Object.keys(searchTerms).length > 1 || searchTerms[0].term.length > 0) setSearchTerms({
-      0: { modifier: 'EQUAL', term: '' }
+      ['default']: { modifier: EQ, term: '' }
     });
   };
   const handleSubmit = (event: FormEvent): void => {
@@ -175,16 +173,8 @@ export function QueryBuilder(): ReactElement<FC> {
               <FieldGroup>
                 <FieldLabel>Search</FieldLabel>
                 {Object.entries(searchTerms).map((item: [string, SearchTermValues]): ReactElement<FC> => {
-                  const index: number = parseInt(item[0]);
-                  const entry: SearchTermValues = item[1];
-
-                  if (index === 0) return <SearchTermInput
-                    key={index}
-                    index={index}
-                    disabled={submitDisabled}
-                    modifier={entry.modifier}
-                    term={entry.term}
-                    onChange={handleSearchTermChange} />;
+                  const index: string = item[0];
+                  const entry: SearchTermStateValues = item[1];
 
                   return <SearchTermInput
                     key={index}
@@ -193,8 +183,7 @@ export function QueryBuilder(): ReactElement<FC> {
                     modifier={entry.modifier}
                     term={entry.term}
                     onChange={handleSearchTermChange}
-                    onButtonCLick={handleSearchTermDelete}
-                    showDeleteButton />;
+                    onButtonCLick={handleSearchTermDelete} />
                 })}
                 <Field orientation="horizontal">
                   <Tooltip delayDuration={1000}>
