@@ -23,7 +23,7 @@ export function QueryDetailsHeader(): ReactElement<FC> {
       selectedQuery?.status === FETCH_INCOMPLETE || selectedQuery?.status === CLEAN_INCOMPLETE ||
       selectedQuery?.status === PARSE_INCOMPLETE
     ),
-    'bg-zinc-600/10 text-zinc-600 dark:bg-zinc-400/20': (
+    'bg-zinc-600/10 text-zinc-600 dark:bg-zinc-400/20 dark:text-zinc-400': (
       selectedQuery?.status !== QUERY_COMPLETE && selectedQuery?.status !== FETCH_INCOMPLETE && selectedQuery?.status !== CLEAN_INCOMPLETE &&
       selectedQuery?.status !== PARSE_INCOMPLETE
     ),
@@ -115,6 +115,10 @@ export function QueryDetails(): ReactElement<FC> {
               {100 - completedPercentage}%
             </span>
           </div>
+          <div className="grid grid-flow-row col-span-4">
+            <h3 className="font-medium text-sm">Requests Used</h3>
+            <span className="text-sm text-muted-foreground">{selectedQuery?.queriesUsed}</span>
+          </div>
         </div>
       </div>
       <Separator />
@@ -182,7 +186,7 @@ export function QueryDetailsCompletion(): ReactElement<FC> {
       </div>
       <div className="grid grid-flow-row">
         <h3 className="font-medium text-sm">Requests Used</h3>
-        <span className="text-sm text-muted-foreground">-</span>
+        <span className="text-sm text-muted-foreground">{selectedQuery?.queriesUsed}</span>
       </div>
     </div>
   );
