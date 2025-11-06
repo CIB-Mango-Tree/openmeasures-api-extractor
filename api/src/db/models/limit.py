@@ -23,7 +23,7 @@ class QueryLimit(Base):
         if self.count == 0:
             return
 
-        if step < 0 or (step + self.count) > 39:
+        if step < 0 or (self.count - step) < 0:
             return
 
         self.count -= step
@@ -31,7 +31,9 @@ class QueryLimit(Base):
     def set_timestamps(self) -> None:
         now = datetime.now()
         self.previous_request_date = now
-        self.limit_refresh_date = now + timedelta(days=1)
+        self.limit_refresh_date = (now + timedelta(days=1)).replace(
+            hour=0, minute=0, second=0
+        )
 
     def set_percentage(self) -> None:
         self.percentage = self.count / 39

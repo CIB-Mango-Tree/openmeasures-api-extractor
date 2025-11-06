@@ -10,13 +10,12 @@ class QueryLimitRepository:
     def __init__(self, factory: scoped_session[Session]) -> None:
         self._session_factory = factory
 
-    def _get_session(self) -> Session:
-        return self._session_factory()
-
     def find(self) -> QueryLimit | None:
-        session = self._get_session()
+        session: Session = self._session_factory()
 
-        return session.scalars(select(QueryLimit)).first()
+        return session.scalars(
+            select(QueryLimit).execution_options(populate_existing=True)
+        ).first()
 
     def create(self, model: QueryLimit) -> None:
         limit = self.find()
@@ -25,13 +24,13 @@ class QueryLimitRepository:
             self.update(model)
             return
 
-        session = self._get_session()
+        session: Session = self._session_factory()
 
         session.add(model)
         session.commit()
 
     def update(self, model: QueryLimit) -> None:
-        session = self._get_session()
+        session: Session = self._session_factory()
         data: dict[str, Any] = {}
 
         for column in model.__table__.columns:
@@ -44,7 +43,7 @@ class QueryLimitRepository:
         session.commit()
 
     def delete(self) -> None:
-        session = self._get_session()
+        session: Session = self._session_factory()
 
         session.execute(sql_delete(QueryLimit))
         session.commit()

@@ -10,8 +10,12 @@ class QueryRequestRepository(BaseRepository[QueryRequest]):
         super().__init__(factory, QueryRequest)
 
     def find_by_query_id(self, id: UUID) -> list[QueryRequest]:
-        session = self._get_session()
+        session: Session = self._session_factory()
 
         return list(
-            session.scalars(select(QueryRequest).where(QueryRequest.query_id == id))
+            session.scalars(
+                select(QueryRequest)
+                .where(QueryRequest.query_id == id)
+                .execution_options(populate_existing=True)
+            )
         )

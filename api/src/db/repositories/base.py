@@ -17,30 +17,34 @@ class BaseRepository[ModelType]:
         self._session_factory = factory
         self._model = model
 
-    def _get_session(self) -> Session:
-        return self._session_factory()
-
     def create(self, model: ModelType) -> None:
-        session = self._session_factory()
+        session: Session = self._session_factory()
 
         session.add(model)
         session.commit()
 
     def update(self, model: ModelType) -> None:
-        session = self._get_session()
+        session: Session = self._session_factory()
 
         session.merge(model)
         session.commit()
 
     def delete(self, id: UUID) -> None:
         model = cast(Any, self._model)
-        session = self._get_session()
+        session: Session = self._session_factory()
 
         session.execute(sql_delete(model).where(model.id == id))
         session.commit()
 
     def exists(self, id: UUID) -> bool:
         model = cast(Any, self._model)
-        session = self._get_session()
+        session: Session = self._session_factory()
 
-        return session.scalar(select(sql_exists(model).where(model.id == id))) or False
+        return (
+            session.scalar(
+                select(sql_exists(model).where(model.id == id)).execution_options(
+                    populate_existing=True
+                )
+            )
+            or False
+        )

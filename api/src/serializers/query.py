@@ -15,5 +15,6 @@ class QuerySerializer(BaseSerializer):
     current_timestamp: datetime | None = None
     platform: str
     rows_fetched: int
+    queries_used: int
     percentage: float
     terms: list[QueryTermSerializer] = []

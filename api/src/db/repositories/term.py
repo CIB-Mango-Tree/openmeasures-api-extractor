@@ -10,14 +10,18 @@ class QueryTermRepository(BaseRepository[QueryTerm]):
         super().__init__(factory, QueryTerm)
 
     def find_by_query_id(self, id: UUID) -> list[QueryTerm]:
-        session = self._get_session()
+        session: Session = self._session_factory()
 
         return list(
-            session.scalars(select(QueryTerm).where(QueryTerm.query_id == id)).all()
+            session.scalars(
+                select(QueryTerm)
+                .where(QueryTerm.query_id == id)
+                .execution_options(populate_existing=True)
+            ).all()
         )
 
     def batch_create(self, models: list[QueryTerm]) -> None:
-        session = self._get_session()
+        session: Session = self._session_factory()
 
         session.add_all(models)
         session.commit()

@@ -17,6 +17,7 @@ from ..validator import (
     CreateQueryValidator,
     UpdateQueryValidator,
     DeleteQueriesValidator,
+    TermValidator,
     ParamValidator,
 )
 from ..serializers import QuerySerializer, QueryLimitSerializer
@@ -66,10 +67,16 @@ class QueryService:
 
     def _fetch_data(self, query: Query) -> Query | None:
         if query.status == FETCH_CONTINUE:
+            logger.debug("Fetch is being continued...")
             query.status = FETCH_IN_PROGRESS
 
             query.set_updated_at()
             self._query_repo.update(query)
+            logger.debug(
+                "continued query has been updated - id: %s status: %s",
+                query.id,
+                query.status,
+            )
             self._emitter.emit(
                 FETCH_UPDATE_PROGRESS,
                 payload=Event(data=QuerySerializer.convert_model_to_dict(query)),
@@ -124,6 +131,7 @@ class QueryService:
                 ):
                     limit.reset()
                     self._query_limit_repo.update(limit)
+                    logger.debug("limit reset has been triggered.")
                     self._emitter.emit(
                         LIMIT_UPDATE,
                         payload=Event(
@@ -177,6 +185,13 @@ class QueryService:
                 limit.set_percentage()
                 self._query_request_repo.create(request)
                 self._query_limit_repo.update(limit)
+                logger.debug(
+                    "limit details after update - count: %d last_update: %s",
+                    limit.count,
+                    limit.limit_refresh_date.isoformat()
+                    if limit.limit_refresh_date is not None
+                    else "None",
+                )
                 self._emitter.emit(
                     LIMIT_UPDATE,
                     payload=Event(
@@ -185,13 +200,15 @@ class QueryService:
                 )
 
                 query = self._query_repo.find_by_id(
-                    query.id, [joinedload(Query.terms), joinedload(Query.requests)]
+                    query.id, [joinedload(Query.requests)]
                 )
 
                 if query is None:
                     break
 
                 query.rows_fetched += hit_length
+
+                query.increment_queries_used()
 
                 if hit_length < 10000:
                     query.percentage = 1.0
@@ -306,9 +323,7 @@ class QueryService:
                 request.set_updated_at()
                 self._query_request_repo.update(request)
 
-            query = self._query_repo.find_by_id(
-                query.id, [joinedload(Query.terms), joinedload(Query.requests)]
-            )
+            query = self._query_repo.find_by_id(query.id, [joinedload(Query.requests)])
 
             if query is None:
                 return None
@@ -387,7 +402,11 @@ class QueryService:
                 return
 
             if query.status in [FETCH_CONTINUE, FETCH_IN_PROGRESS]:
-                logger.debug("data fetch for query: %s is starting", query.id)
+                logger.debug(
+                    "data fetch for query is starting - id: %s status: %s",
+                    query.id,
+                    query.status,
+                )
                 query = await to_thread(self._fetch_data, query)
 
                 if query is None:
@@ -463,6 +482,13 @@ class QueryService:
         return self._query_repo.find_by_platform(platform)
 
     def create(self, data: CreateQueryValidator) -> Query:
+        logger.debug(
+            "validated data for potential new query - platform: %s start_date: %s end_date: %s terms: %s",
+            data.platform,
+            data.start_date,
+            data.end_date,
+            data.terms,
+        )
         query = Query(
             start_date=data.start_date, end_date=data.end_date, platform=data.platform
         )
@@ -472,9 +498,19 @@ class QueryService:
 
         self._query_repo.create(query)
 
-        terms: list[QueryTerm] = [
-            QueryTerm(query_id=query.id, term=item.term) for item in data.terms
-        ]
+        terms: list[QueryTerm] = []
+
+        for index in range(len(data.terms)):
+            item: TermValidator = data.terms[index]
+
+            terms.append(
+                QueryTerm(
+                    query_id=query.id,
+                    term=item.term,
+                    modifier=item.modifier,
+                    position=index + 1,
+                )
+            )
 
         self._query_term_repo.batch_create(terms)
         self.process_query(query.id)

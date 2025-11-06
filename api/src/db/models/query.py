@@ -20,11 +20,20 @@ class Query(BaseModelWithTimestamp):
     end_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     platform: Mapped[str] = mapped_column(String(64), nullable=False)
     current_timestamp: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    queries_used: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     rows_fetched: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     percentage: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     processed_data: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
-    terms: Mapped[list[QueryTerm]] = relationship(cascade="all, delete")
+    terms: Mapped[list[QueryTerm]] = relationship(
+        cascade="all, delete", order_by="QueryTerm.position"
+    )
     requests: Mapped[list[QueryRequest]] = relationship(cascade="all, delete")
+
+    def increment_queries_used(self, step: int = 1) -> None:
+        if step <= 0:
+            return
+
+        self.queries_used += step
 
     def from_requests_to_dataframe(self) -> DataFrame:
         data = []

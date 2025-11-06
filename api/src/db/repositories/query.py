@@ -16,43 +16,58 @@ class QueryRepository(BaseRepository[Query]):
     def find_all(
         self, query_options: list[Any] = [joinedload(Query.terms)]
     ) -> list[Query]:
-        session = self._get_session()
+        session: Session = self._session_factory()
 
-        return list(session.scalars(select(Query).options(*query_options)).unique())
+        return list(
+            session.scalars(
+                select(Query)
+                .options(*query_options)
+                .execution_options(populate_existing=True)
+            ).unique()
+        )
 
     def find_by_id(
         self, id: UUID, query_options: list[Any] = [joinedload(Query.terms)]
     ) -> Query | None:
-        session = self._get_session()
+        session: Session = self._session_factory()
 
         return session.scalars(
-            select(Query).options(*query_options).where(Query.id == id)
+            select(Query)
+            .options(*query_options)
+            .where(Query.id == id)
+            .execution_options(populate_existing=True)
         ).first()
 
     def find_by_status(
         self, status: str, query_options: list[Any] = [joinedload(Query.terms)]
     ) -> list[Query]:
-        session = self._get_session()
+        session: Session = self._session_factory()
 
         return list(
             session.scalars(
-                select(Query).options(*query_options).where(Query.status == status)
+                select(Query)
+                .options(*query_options)
+                .where(Query.status == status)
+                .execution_options(populate_existing=True)
             ).unique()
         )
 
     def find_by_platform(
         self, platform: str, query_options: list[Any] = [joinedload(Query.terms)]
     ) -> list[Query]:
-        session = self._get_session()
+        session: Session = self._session_factory()
 
         return list(
             session.scalars(
-                select(Query).options(*query_options).where(Query.platform == platform)
+                select(Query)
+                .options(*query_options)
+                .where(Query.platform == platform)
+                .execution_options(populate_existing=True)
             ).unique()
         )
 
     def batch_delete(self, ids: list[UUID]) -> None:
-        session = self._get_session()
+        session: Session = self._session_factory()
 
         session.execute(delete(Query).where(Query.id.in_(ids)))
         session.commit()
