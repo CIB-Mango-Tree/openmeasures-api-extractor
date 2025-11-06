@@ -51,6 +51,7 @@ export function QueryTable({ columns }: QueryTableProps): ReactElement<FC> {
   const queryTableColumnDefinitions = useMemo((): Array<ColumnDef<Query>> => ([
     {
       accessorKey: 'platform',
+      sortingFn: 'alphanumeric',
       header: ({ column }: HeaderContext<Query, unknown>): ReactElement<FC> => (
         <QueryTableColumnHeader column={column}>Platform</QueryTableColumnHeader>
       ),
@@ -60,6 +61,7 @@ export function QueryTable({ columns }: QueryTableProps): ReactElement<FC> {
     },
     {
       accessorKey: 'status',
+      sortingFn: 'alphanumeric',
       header: ({ column }: HeaderContext<Query, unknown>): ReactElement<FC> => (
         <QueryTableColumnHeader column={column}>Status</QueryTableColumnHeader>
       ),
@@ -68,7 +70,7 @@ export function QueryTable({ columns }: QueryTableProps): ReactElement<FC> {
         const badgeClasses: string = cn({
           'bg-green-600/10 text-green-600 dark:bg-green-400/20': status === QUERY_COMPLETE,
           'bg-red-600/10 text-red-600 dark:bg-red-400/20': status === FETCH_INCOMPLETE || status === CLEAN_INCOMPLETE || status === PARSE_INCOMPLETE,
-          'bg-zinc-600/10 text-zinc-600 dark:bg-zinc-400/20': status !== QUERY_COMPLETE && status !== FETCH_INCOMPLETE && status !== CLEAN_INCOMPLETE && status !== PARSE_INCOMPLETE,
+          'bg-zinc-600/10 text-zinc-600 dark:bg-zinc-400/20 dark:text-zinc-400': status !== QUERY_COMPLETE && status !== FETCH_INCOMPLETE && status !== CLEAN_INCOMPLETE && status !== PARSE_INCOMPLETE,
         }, 'min-w-5 h-5 border-0 rounded-full font-bold tabular-nums');
 
         return <Badge className={badgeClasses}>{status}</Badge>;
@@ -76,6 +78,12 @@ export function QueryTable({ columns }: QueryTableProps): ReactElement<FC> {
     },
     {
       accessorKey: 'createdAt',
+      sortingFn: (row1: Row<Query>, row2: Row<Query>, _): number => {
+        const date1 = new Date(row1.original.createdAt);
+        const date2 = new Date(row2.original.createdAt);
+
+        return date1.getTime() < date2.getTime() ? -1 : 1;
+      },
       header: ({ column }: HeaderContext<Query, unknown>): ReactElement<FC> => (
         <QueryTableColumnHeader column={column}>Date</QueryTableColumnHeader>
       ),
@@ -87,6 +95,9 @@ export function QueryTable({ columns }: QueryTableProps): ReactElement<FC> {
     },
     {
       accessorKey: 'percentage',
+      sortingFn: (row1: Row<Query>, row2: Row<Query>, _): number => (
+        row1.original.percentage - row2.original.percentage
+      ),
       header: ({ column }: HeaderContext<Query, unknown>): ReactElement<FC> => (
         <QueryTableColumnHeader column={column}>Completed %</QueryTableColumnHeader>
       ),
