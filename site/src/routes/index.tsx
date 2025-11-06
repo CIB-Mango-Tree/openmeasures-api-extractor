@@ -1,7 +1,10 @@
 import { useEffect } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import { useQueries } from '@state/query';
+import { useLimitState } from '@state/limit';
+import WebSocketConnection from '@lib/websocket';
 import { GETQueries } from '@lib/fetch/query';
+import { GETLimit } from '@lib/fetch/limit';
 import Hero from '@components/hero';
 import { LimitCounter, LimitAlert } from '@components/limit';
 import { QueryBuilder } from '@components/builder';
@@ -10,8 +13,10 @@ import { QueryResultView } from '@components/results';
 import { QueryDetailsDialog } from '@components/details';
 import type { ReactElement, FC } from 'react';
 import type { Query, QueryResponse } from '@appTypes/query';
-import type { APICollectionResponse } from '@appTypes/fetch';
+import type { LimitResponse } from '@appTypes/limit';
+import type { APICollectionResponse, APIResponse } from '@appTypes/fetch';
 import type { QueriesState, SetQueriesCallback } from '@state/query';
+import type { LimitState, SetLimitCallback } from '@state/limit';
 
 export const Route = createFileRoute('/')({
   ssr: true,
@@ -20,12 +25,24 @@ export const Route = createFileRoute('/')({
 
 function App(): ReactElement<FC> {
   const setQueries = useQueries((state: QueriesState): SetQueriesCallback => state.set);
+  const setLimit = useLimitState((state: LimitState): SetLimitCallback => state.set);
 
-  useEffect((): void => {
+  useEffect(() => {
     const func = async (): Promise<void> => {
-      const apiResponse: APICollectionResponse<QueryResponse> = await GETQueries();
+      const responses: Array<PromiseSettledResult<APICollectionResponse<QueryResponse> | APIResponse<LimitResponse>>> = await Promise.allSettled([
+        GETLimit(),
+        GETQueries()
+      ]);
+      const limitResponsePromiseResult = responses[0] as PromiseSettledResult<APIResponse<LimitResponse>>;
+      const apiResponsePromiseResult = responses[1] as PromiseSettledResult<APICollectionResponse<QueryResponse>>;
 
-      setQueries(apiResponse.data.map((item: QueryResponse): Query => ({
+      if (limitResponsePromiseResult.status === 'fulfilled') setLimit({
+        count: limitResponsePromiseResult.value.data.count,
+        previousRequestDate: limitResponsePromiseResult.value.data.previous_request_date,
+        limitRefreshDate: limitResponsePromiseResult.value.data.limit_refresh_date
+      });
+
+      if (apiResponsePromiseResult.status === 'fulfilled') setQueries(apiResponsePromiseResult.value.data.map((item: QueryResponse): Query => ({
         id: item.id,
         createdAt: item.created_at,
         updatedAt: item.updated_at,
@@ -35,12 +52,17 @@ function App(): ReactElement<FC> {
         startDate: item.start_date,
         endDate: item.end_date,
         rowsFetched: item.rows_fetched,
+        queriesUsed: item.queries_used,
         percentage: item.percentage,
         terms: item.terms
       })));
     };
 
     func();
+
+    return (): void => {
+
+    };
   }, []);
 
   return (

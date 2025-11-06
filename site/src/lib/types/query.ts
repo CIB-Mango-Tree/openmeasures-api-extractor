@@ -18,6 +18,7 @@ export type Query = {
   startDate: Date;
   endDate: Date;
   rowsFetched: number;
+  queriesUsed: number;
   percentage: number;
   terms: Array<QueryTerm>;
 };
@@ -32,6 +33,7 @@ export type QueryResponse = {
   start_date: Date;
   end_date: Date;
   rows_fetched: number;
+  queries_used: number;
   percentage: number;
   terms: Array<QueryTerm>;
 };
