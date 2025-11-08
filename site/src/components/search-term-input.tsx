@@ -54,7 +54,7 @@ export default function SearchTermInput({ index, modifier, term, onChange, disab
           <SelectValue placeholder="Select Modifier" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={EQ}>Contains</SelectItem>
+          <SelectItem value={EQ} disabled={!isDefault}>Contains</SelectItem>
           <SelectItem value={NOT}>Does Not Contain</SelectItem>
           <SelectItem value={AND} disabled={isDefault}>Also Contains</SelectItem>
           <SelectItem value={OR} disabled={isDefault}>Or Contains</SelectItem>
