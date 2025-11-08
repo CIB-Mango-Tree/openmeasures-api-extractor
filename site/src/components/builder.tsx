@@ -1,4 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useLimitState, useLimitAlertState } from '@state/limit';
+import { useFetchingQueryState } from '@state/query';
+import { formatISO } from 'date-fns';
+import { POSTQuery } from '@lib/fetch/query';
 import { SquarePlus } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent } from '@components/ui/card';
 import { Field, FieldLabel, FieldSet, FieldGroup } from '@components/ui/field';
@@ -7,9 +11,13 @@ import { Button } from '@components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@components/ui/tooltip';
 import DateTimePicker from '@components/date-time-picker';
 import SearchTermInput from '@components/search-term-input';
+import { QUERY_COMPLETE } from '@constants/status';
 import { EQ } from '@constants/modifiers';
 import type { ReactElement, FC, FormEvent } from 'react';
 import type { SearchTermValues, SearchTermChangeValues } from '@appTypes/term';
+import type { CreateQueryPayload, QueryTerm, Query } from '@appTypes/query';
+import type { LimitState, LimitAlertState } from '@state/limit';
+import type { FetchingQueryState } from '@state/query';
 
 export type SearchTermStateValues = SearchTermValues & { first?: boolean; };
 export type SearchTermMap = { [index: string]: SearchTermValues; };
@@ -21,6 +29,9 @@ export function QueryBuilder(): ReactElement<FC> {
       .formatToParts(new Date())
       .find((item: Intl.DateTimeFormatPart): boolean => item.type === 'timeZoneName')?.value as string
   ), []);
+  const fetchingQueryState = useFetchingQueryState((state: FetchingQueryState): FetchingQueryState => state);
+  const limitState = useLimitState((state: LimitState): LimitState => state);
+  const limitAlertState = useLimitAlertState((state: LimitAlertState): LimitAlertState => state);
   const [submitDisabled, setSubmitDisabled] = useState<boolean>(false);
   const [timezone, setTimezone] = useState<string>(defaultTimezone);
   const [platform, setPlatform] = useState<string>('');
@@ -32,6 +43,9 @@ export function QueryBuilder(): ReactElement<FC> {
   const isStateEmpty: boolean = (
     (timezone.length === 0 || timezone === defaultTimezone) && platform.length === 0 && startDate == null && endDate == null &&
     Object.keys(searchTerms).length === 1 && searchTerms['default'].term.length === 0
+  );
+  const isNotSubmittable: boolean = (
+    timezone.length === 0 || platform.length === 0 || startDate == null || endDate == null || searchTerms['default'].term.length === 0
   );
   const handleStartDateChange = (date?: Date): void => setStartDate(date || null);
   const handleEndDateChange = (date?: Date): void => setEndDate(date || null);
@@ -63,10 +77,50 @@ export function QueryBuilder(): ReactElement<FC> {
       ['default']: { modifier: EQ, term: '' }
     });
   };
-  const handleSubmit = (event: FormEvent): void => {
+  const handleSubmit = async (event: FormEvent): Promise<void> => {
     event.preventDefault();
+
+    if (limitState.count === 0) {
+      limitAlertState.setType('maxed_out');
+      limitAlertState.toggleShow();
+      return;
+    }
+
     setSubmitDisabled(true);
+
+    const payload: CreateQueryPayload = {
+      timezone,
+      platform,
+      start_date: formatISO(startDate as Date, { format: 'extended' }),
+      end_date: formatISO(endDate as Date, { format: 'extended' }),
+      terms: Object.values(searchTerms) as Array<QueryTerm>
+    };
+    const response = await POSTQuery(payload);
+
+    handleClear();
+    fetchingQueryState.setQuery({
+      id: response.data.id,
+      createdAt: response.data.created_at,
+      updatedAt: response.data.updated_at,
+      platform: response.data.platform,
+      status: response.data.status,
+      timezone: response.data.timezone,
+      startDate: response.data.start_date,
+      endDate: response.data.end_date,
+      rowsFetched: response.data.rows_fetched,
+      queriesUsed: response.data.queries_used,
+      percentage: response.data.percentage,
+      terms: response.data.terms
+    });
+    fetchingQueryState.toggleShow();
   };
+
+  useEffect((): void => {
+    if (fetchingQueryState.query == null || fetchingQueryState.query.status !== QUERY_COMPLETE) return;
+
+    fetchingQueryState.toggleShow();
+    setSubmitDisabled(false);
+  }, [fetchingQueryState.query]);
 
   return (
     <Card className="col-span-8" suppressHydrationWarning>
@@ -180,7 +234,7 @@ export function QueryBuilder(): ReactElement<FC> {
                 <FieldLabel>Search</FieldLabel>
                 {Object.entries(searchTerms).map((item: [string, SearchTermValues]): ReactElement<FC> => {
                   const index: string = item[0];
-                  const entry: SearchTermStateValues = item[1];
+                  const entry: SearchTermValues = item[1];
 
                   return <SearchTermInput
                     key={index}
@@ -211,7 +265,7 @@ export function QueryBuilder(): ReactElement<FC> {
               </FieldGroup>
             </FieldSet>
             <Field orientation="horizontal">
-              <Button type="submit" className="cursor-pointer" disabled={submitDisabled}>
+              <Button type="submit" className="cursor-pointer" disabled={submitDisabled || isNotSubmittable}>
                 Apply
               </Button>
             </Field>

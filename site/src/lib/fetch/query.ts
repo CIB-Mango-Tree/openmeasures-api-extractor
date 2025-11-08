@@ -31,6 +31,9 @@ export async function POSTQuery(data: CreateQueryPayload): AsyncAPIQueryResponse
 export async function PATCHQuery(id: string, status: string): AsyncAPIQueryResponse {
   const response: Response = await fetch(`${import.meta.env.VITE_API_URL}/api/queries/${id}`, {
     method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json'
+    },
     body: JSON.stringify({ status: status })
   });
 

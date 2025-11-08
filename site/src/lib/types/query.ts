@@ -39,8 +39,9 @@ export type QueryResponse = {
 };
 
 export type CreateQueryPayload = {
-  start_date: Date;
-  end_date: Date;
+  timezone: string;
+  start_date: string;
+  end_date: string;
   platform: string;
   terms: Array<QueryTerm>;
 };
