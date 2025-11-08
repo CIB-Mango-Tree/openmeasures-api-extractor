@@ -22,12 +22,6 @@ export interface FetchingQueryState {
   toggleShow: () => void;
 }
 
-export interface AlertQueryState {
-  query: Query | null;
-  set: QueryCallback;
-  clear: () => void;
-}
-
 export interface QueriesState {
   queries: Array<Query>;
   set: SetQueriesCallback;
@@ -60,10 +54,4 @@ export const useSelectedQuery = create<SelectedQueryState>((setState): SelectedQ
   removeQuery: (): void => setState((state: SelectedQueryState): SelectedQueryState => ({ ...state, selectedQuery: null })),
   setCurrentView: (view: CurrentViewType): void => setState((state: SelectedQueryState): SelectedQueryState => ({ ...state, currentView: view })),
   clear: (): void => setState((state: SelectedQueryState): SelectedQueryState => ({ ...state, currentView: 'details', selectedQuery: null }))
-}));
-
-export const useAlertQuery = create<AlertQueryState>((setState): AlertQueryState => ({
-  query: null,
-  set: (query: Query): void => setState((state: AlertQueryState): AlertQueryState => ({ ...state, query })),
-  clear: (): void => setState((state: AlertQueryState): AlertQueryState => ({ ...state, query: null })),
 }));
