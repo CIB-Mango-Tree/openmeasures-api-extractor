@@ -1,6 +1,8 @@
-import { useMemo } from 'react';
 import { format } from 'date-fns';
 import { useSelectedQuery } from '@lib/state/query';
+import { useLimitState, useLimitAlertState } from '@lib/state/limit';
+import { PATCHQuery } from '@lib/fetch/query';
+import { mapResponseToQuery } from '@lib/map';
 import { cn } from '@lib/utils';
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter, DialogHeader } from '@components/ui/dialog';
 import { Button } from '@components/ui/button';
@@ -9,10 +11,12 @@ import { Spinner } from '@components/ui/spinner';
 import { Badge } from '@components/ui/badge';
 import { Separator } from '@components/ui/separator';
 import { ExportButton } from '@components/export';
-import { QUERY_COMPLETE, FETCH_INCOMPLETE, CLEAN_INCOMPLETE, PARSE_INCOMPLETE } from '@constants/status';
+import { QUERY_COMPLETE, FETCH_INCOMPLETE, FETCH_CONTINUE, CLEAN_INCOMPLETE, PARSE_INCOMPLETE } from '@constants/status';
 import type { ReactElement, FC } from 'react';
 import type { SelectedQueryState, CurrentViewType } from '@state/query';
-import type { Query } from '@appTypes/query';
+import type { LimitState, LimitAlertState } from '@state/limit';
+import type { Query, QueryResponse } from '@appTypes/query';
+import type { APIResponse } from '@appTypes/fetch';
 
 export function QueryDetailsHeader(): ReactElement<FC> {
   const selectedQuery = useSelectedQuery((state: SelectedQueryState): Query | null => state.selectedQuery);
@@ -60,6 +64,8 @@ export function QueryDetailsHeader(): ReactElement<FC> {
 
 export function QueryDetailsFooter(): ReactElement<FC> {
   const state = useSelectedQuery((state: SelectedQueryState): SelectedQueryState => state);
+  const limitState = useLimitState((state: LimitState): LimitState => state);
+  const limitAlertState = useLimitAlertState((state: LimitAlertState): LimitAlertState => state);
   const handleClose = (): void => {
     if (state.currentView === 'complete') {
       state.clear();
@@ -67,6 +73,19 @@ export function QueryDetailsFooter(): ReactElement<FC> {
     }
 
     state.removeQuery();
+  };
+  const handleClick = async (): Promise<void> => {
+    if (limitState.count === 0) {
+      limitAlertState.setType('maxed_out');
+      limitAlertState.toggleShow();
+      return;
+    }
+
+    const response: APIResponse<QueryResponse> = await PATCHQuery(state.selectedQuery?.id as string, FETCH_CONTINUE);
+    const query: Query = mapResponseToQuery(response.data);
+
+    state.setQuery(query);
+    state.setCurrentView('progress');
   };
 
   return (
@@ -79,7 +98,11 @@ export function QueryDetailsFooter(): ReactElement<FC> {
         Close
       </Button>
       {state.selectedQuery?.status !== QUERY_COMPLETE && (
-        <Button variant="default" className="cursor-pointer">Complete Extraction</Button>
+        <Button variant="default"
+          className="cursor-pointer"
+          onClick={handleClick}>
+          Complete Extraction
+        </Button>
       )}
       {state.selectedQuery?.status === QUERY_COMPLETE && <ExportButton id={state.selectedQuery.id} />}
     </DialogFooter>
@@ -88,7 +111,7 @@ export function QueryDetailsFooter(): ReactElement<FC> {
 
 export function QueryDetails(): ReactElement<FC> {
   const selectedQuery = useSelectedQuery((state: SelectedQueryState): Query | null => state.selectedQuery);
-  const completedPercentage = useMemo((): number => selectedQuery != null ? Math.round(selectedQuery?.percentage * 100) : 0, [selectedQuery]);
+  const completedPercentage = selectedQuery != null ? Math.round(selectedQuery?.percentage * 100) : 0;
 
   return (
     <>
@@ -163,11 +186,13 @@ export function QueryDetailsProgress(): ReactElement<FC> {
 
   return (
     <div className="grid grid-flow-row gap-y-2">
-      <Spinner />
-      <span>We are preparing your file...</span>
-      <div className="grid-flow-col">
-        <Progress value={progressPercentage} />
-        <span>{progressPercentage}%</span>
+      <div className="grid grid-flow-col justify-start items-center">
+        <Spinner />
+        <span>We are preparing your file...</span>
+      </div>
+      <div className="grid grid-flow-col grid-cols-12 justify-between items-center">
+        <Progress className="h-3 col-span-10" value={progressPercentage} />
+        <span className="col-end-2 text-center">{progressPercentage}%</span>
       </div>
     </div>
   );

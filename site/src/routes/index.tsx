@@ -20,7 +20,7 @@ import type { ReactElement, FC } from 'react';
 import type { Query, QueryResponse } from '@appTypes/query';
 import type { LimitResponse } from '@appTypes/limit';
 import type { APICollectionResponse, APIResponse } from '@appTypes/fetch';
-import type { FetchingQueryState, QueriesState } from '@state/query';
+import type { FetchingQueryState, QueriesState, SelectedQueryState } from '@state/query';
 import type { LimitState, LimitAlertState } from '@state/limit';
 import type { EventMessageData } from '@appTypes/event';
 
@@ -34,6 +34,7 @@ function App(): ReactElement<FC> {
   const limitState = useLimitState((state: LimitState): LimitState => state);
   const limitAlertState = useLimitAlertState((state: LimitAlertState): LimitAlertState => state);
   const fetchingQueryState = useFetchingQueryState((state: FetchingQueryState): FetchingQueryState => state);
+  const selectedQueryState = useSelectedQuery((state: SelectedQueryState): SelectedQueryState => state);
   const connectionRef = useRef<WebSocketConnection | null>(null);
 
   useEffect(() => {
@@ -100,6 +101,7 @@ function App(): ReactElement<FC> {
       }
 
       queriesState.update(query);
+      connectionRef.current?.unsubscribe(query.id);
       toast.success('Extraction Complete', { description: `Data extraction for ${query.status} is complete!` });
     });
 
@@ -109,10 +111,17 @@ function App(): ReactElement<FC> {
 
     connectionRef.current.on(LIMIT_MAXED_OUT, (data: EventMessageData): void => {
       const alertState: LimitAlertState = useLimitAlertState.getState();
+      const fetchingState: FetchingQueryState = useFetchingQueryState.getState();
+      const selectedState: SelectedQueryState = useSelectedQuery.getState();
 
       limitState.set(mapResponseToLimit(data as LimitResponse));
       alertState.setType('maxed_out');
       if (!alertState.show) alertState.toggleShow();
+      if (fetchingState.showProgress) {
+        fetchingState.toggleShow();
+        fetchingState.removeQuery();
+      }
+      if (selectedState.selectedQuery != null && selectedState.currentView === 'progress') selectedState.setCurrentView('details');
     });
 
     const fetchingQueryID: string | null = window.localStorage.getItem(FETCHING_QUERY_KEY);
@@ -139,14 +148,14 @@ function App(): ReactElement<FC> {
       const query = queriesState.queries.find((item: Query): boolean => item.id === selectedQueryID);
 
       if (query != null && query.status !== QUERY_COMPLETE) {
-        const fetchingState = useFetchingQueryState.getState();
+        const selectedState = useSelectedQuery.getState();
 
-        fetchingState.setQuery(query);
-        fetchingState.toggleShow();
+        selectedState.setQuery(query);
+        selectedState.setCurrentView('progress');
         connectionRef.current.subscribe(selectedQueryID);
 
       } else {
-        window.localStorage.removeItem(FETCHING_QUERY_KEY);
+        window.localStorage.removeItem(SELECTED_QUERY_KEY);
       }
     }
 
@@ -179,6 +188,30 @@ function App(): ReactElement<FC> {
       window.localStorage.removeItem(FETCHING_QUERY_KEY);
     }
   }, [fetchingQueryState.query]);
+
+  useEffect((): void => {
+    if (connectionRef.current == null) return;
+
+    const currentStoredID = window.localStorage.getItem(SELECTED_QUERY_KEY);
+
+    if (selectedQueryState.selectedQuery != null) {
+      const newID = selectedQueryState.selectedQuery.id;
+
+      if (currentStoredID !== newID) {
+        if (currentStoredID) connectionRef.current.unsubscribe(currentStoredID);
+
+        window.localStorage.setItem(SELECTED_QUERY_KEY, newID);
+        connectionRef.current.subscribe(newID);
+      }
+
+      return;
+    }
+
+    if (selectedQueryState.selectedQuery == null && currentStoredID != null) {
+      connectionRef.current.unsubscribe(currentStoredID);
+      window.localStorage.removeItem(SELECTED_QUERY_KEY);
+    }
+  }, [selectedQueryState.selectedQuery]);
 
   return (
     <main className="grid grid-flow-row auto-rows-min gap-y-8 py-8 px-52">
