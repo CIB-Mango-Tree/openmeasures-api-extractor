@@ -1,4 +1,4 @@
-import type { EventMessage } from '@appTypes/event';
+import type { EventMessage, EventMessageData } from '@appTypes/event';
 
 export default class WebSocketConnection {
   public socket: WebSocket;
@@ -13,15 +13,15 @@ export default class WebSocketConnection {
   }
 
   private messageHandler(event: MessageEvent): void {
-    if (this.eventManager == null) return;
+    const message = JSON.parse(event.data) as EventMessage;
 
-    const message = event.data as EventMessage;
+    if (message.event == null) return;
 
     this.eventManager.dispatchEvent(new CustomEvent(message.event, { detail: message.data }));
   }
 
-  public on<DataType = any>(event: string, callback: (data: DataType) => void): void {
-    this.eventManager.addEventListener(event, (event: Event): void => callback((event as CustomEvent).detail as DataType));
+  public on(event: string, callback: (data: EventMessageData) => void): void {
+    this.eventManager.addEventListener(event, (event: Event): void => callback((event as CustomEvent).detail as EventMessageData));
   }
 
   public off(event: string, callback: (data: any) => void): void {

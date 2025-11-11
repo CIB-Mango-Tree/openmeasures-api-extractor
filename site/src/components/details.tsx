@@ -60,7 +60,6 @@ export function QueryDetailsHeader(): ReactElement<FC> {
 
 export function QueryDetailsFooter(): ReactElement<FC> {
   const state = useSelectedQuery((state: SelectedQueryState): SelectedQueryState => state);
-  const baseUrl = useMemo((): string => `${import.meta.env.VITE_API_URL}/api/queries/${state.selectedQuery?.id}/download`, [state.selectedQuery]);
   const handleClose = (): void => {
     if (state.currentView === 'complete') {
       state.clear();

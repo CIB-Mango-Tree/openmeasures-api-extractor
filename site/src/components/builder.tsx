@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useLimitState, useLimitAlertState } from '@state/limit';
-import { useFetchingQueryState } from '@state/query';
+import { useFetchingQueryState, useQueries } from '@state/query';
 import { formatISO } from 'date-fns';
 import { POSTQuery } from '@lib/fetch/query';
+import { mapResponseToQuery } from '@lib/map';
 import { SquarePlus } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent } from '@components/ui/card';
 import { Field, FieldLabel, FieldSet, FieldGroup } from '@components/ui/field';
@@ -17,18 +18,14 @@ import type { ReactElement, FC, FormEvent } from 'react';
 import type { SearchTermValues, SearchTermChangeValues } from '@appTypes/term';
 import type { CreateQueryPayload, QueryTerm, Query } from '@appTypes/query';
 import type { LimitState, LimitAlertState } from '@state/limit';
-import type { FetchingQueryState } from '@state/query';
+import type { FetchingQueryState, QueriesState } from '@state/query';
 
 export type SearchTermStateValues = SearchTermValues & { first?: boolean; };
 export type SearchTermMap = { [index: string]: SearchTermValues; };
 
 export function QueryBuilder(): ReactElement<FC> {
-  const defaultTimezone = useMemo<string>((): string => (
-    new Intl
-      .DateTimeFormat('en-US', { timeZoneName: 'long' })
-      .formatToParts(new Date())
-      .find((item: Intl.DateTimeFormatPart): boolean => item.type === 'timeZoneName')?.value as string
-  ), []);
+  const defaultTimezone = useMemo<string>((): string => new Intl.DateTimeFormat().resolvedOptions().timeZone, []);
+  const queriesState = useQueries((state: QueriesState): QueriesState => state);
   const fetchingQueryState = useFetchingQueryState((state: FetchingQueryState): FetchingQueryState => state);
   const limitState = useLimitState((state: LimitState): LimitState => state);
   const limitAlertState = useLimitAlertState((state: LimitAlertState): LimitAlertState => state);
@@ -96,22 +93,11 @@ export function QueryBuilder(): ReactElement<FC> {
       terms: Object.values(searchTerms) as Array<QueryTerm>
     };
     const response = await POSTQuery(payload);
+    const query: Query = mapResponseToQuery(response.data);
 
     handleClear();
-    fetchingQueryState.setQuery({
-      id: response.data.id,
-      createdAt: response.data.created_at,
-      updatedAt: response.data.updated_at,
-      platform: response.data.platform,
-      status: response.data.status,
-      timezone: response.data.timezone,
-      startDate: response.data.start_date,
-      endDate: response.data.end_date,
-      rowsFetched: response.data.rows_fetched,
-      queriesUsed: response.data.queries_used,
-      percentage: response.data.percentage,
-      terms: response.data.terms
-    });
+    fetchingQueryState.setQuery(query);
+    queriesState.push(query);
     fetchingQueryState.toggleShow();
   };
 
@@ -150,55 +136,55 @@ export function QueryBuilder(): ReactElement<FC> {
                     <SelectContent>
                       <SelectGroup>
                         <SelectLabel>North America</SelectLabel>
-                        <SelectItem value="Eastern Standard Time">Eastern Standard Time (EST)</SelectItem>
-                        <SelectItem value="Central Standard Time">Central Standard Time (CST)</SelectItem>
-                        <SelectItem value="Mountain Standard Time">Mountain Standard Time (MST)</SelectItem>
-                        <SelectItem value="Pacific Standard Time">Pacific Standard Time (PST)</SelectItem>
-                        <SelectItem value="Alaska Standard Time">Alaska Standard Time (AKST)</SelectItem>
-                        <SelectItem value="Hawaii Standard Time">Hawaii Standard Time (HST)</SelectItem>
+                        <SelectItem value="America/New_York">Eastern Standard Time (EST)</SelectItem>
+                        <SelectItem value="America/Chicago">Central Standard Time (CST)</SelectItem>
+                        <SelectItem value="America/Denver">Mountain Standard Time (MST)</SelectItem>
+                        <SelectItem value="America/Los_Angeles">Pacific Standard Time (PST)</SelectItem>
+                        <SelectItem value="America/Anchorage">Alaska Standard Time (AKST)</SelectItem>
+                        <SelectItem value="Pacific/Honolulu">Hawaii Standard Time (HST)</SelectItem>
                       </SelectGroup>
                       <SelectGroup>
                         <SelectLabel>Europe & Africa</SelectLabel>
-                        <SelectItem value="Greenwich Mean Time">Greenwich Mean Time (GMT)</SelectItem>
-                        <SelectItem value="Central European Time">Central European Time (CET)</SelectItem>
-                        <SelectItem value="Eastern European Time">Eastern European Time (EET)</SelectItem>
-                        <SelectItem value="Western European Summer Time">
+                        <SelectItem value="Europe/London">Greenwich Mean Time (GMT)</SelectItem>
+                        <SelectItem value="Europe/Paris">Central European Time (CET)</SelectItem>
+                        <SelectItem value="Europe/Athens">Eastern European Time (EET)</SelectItem>
+                        <SelectItem value="Europe/Lisbon">
                           Western European Summer Time (WEST)
                         </SelectItem>
-                        <SelectItem value="Central Africa Time">Central Africa Time (CAT)</SelectItem>
-                        <SelectItem value="East Africa Time">East Africa Time (EAT)</SelectItem>
+                        <SelectItem value="Africa/Maputo">Central Africa Time (CAT)</SelectItem>
+                        <SelectItem value="Africa/Nairobi">East Africa Time (EAT)</SelectItem>
                       </SelectGroup>
                       <SelectGroup>
                         <SelectLabel>Asia</SelectLabel>
-                        <SelectItem value="Moscow Time">Moscow Time (MSK)</SelectItem>
-                        <SelectItem value="India Standard Time">India Standard Time (IST)</SelectItem>
-                        <SelectItem value="China Standard Time">China Standard Time (CST)</SelectItem>
-                        <SelectItem value="Japan Standard Time">Japan Standard Time (JST)</SelectItem>
-                        <SelectItem value="Korea Standard Time">Korea Standard Time (KST)</SelectItem>
-                        <SelectItem value="Indonesia Central Standard Time">
+                        <SelectItem value="Europe/Moscow">Moscow Time (MSK)</SelectItem>
+                        <SelectItem value="Asia/Kolkata">India Standard Time (IST)</SelectItem>
+                        <SelectItem value="Asia/Shanghai">China Standard Time (CST)</SelectItem>
+                        <SelectItem value="Asia/Tokyo">Japan Standard Time (JST)</SelectItem>
+                        <SelectItem value="Asia/Seoul">Korea Standard Time (KST)</SelectItem>
+                        <SelectItem value="Asia/Makassar">
                           Indonesia Central Standard Time (WITA)
                         </SelectItem>
                       </SelectGroup>
                       <SelectGroup>
                         <SelectLabel>Australia & Pacific</SelectLabel>
-                        <SelectItem value="Australian Western Standard Time">
+                        <SelectItem value="Australia/Perth">
                           Australian Western Standard Time (AWST)
                         </SelectItem>
-                        <SelectItem value="Australian Central Standard Time">
+                        <SelectItem value="Australia/Adelaide">
                           Australian Central Standard Time (ACST)
                         </SelectItem>
-                        <SelectItem value="Australian Eastern Standard Time">
+                        <SelectItem value="Australia/Sydney">
                           Australian Eastern Standard Time (AEST)
                         </SelectItem>
-                        <SelectItem value="New Zealand Standard Time">New Zealand Standard Time (NZST)</SelectItem>
-                        <SelectItem value="Fiji Time">Fiji Time (FJT)</SelectItem>
+                        <SelectItem value="Pacific/Auckland">New Zealand Standard Time (NZST)</SelectItem>
+                        <SelectItem value="Pacific/Fiji">Fiji Time (FJT)</SelectItem>
                       </SelectGroup>
                       <SelectGroup>
                         <SelectLabel>South America</SelectLabel>
-                        <SelectItem value="Argentina Time">Argentina Time (ART)</SelectItem>
-                        <SelectItem value="Bolivia Time">Bolivia Time (BOT)</SelectItem>
-                        <SelectItem value="Brasilia Time">Brasilia Time (BRT)</SelectItem>
-                        <SelectItem value="Chile Standard Time">Chile Standard Time (CLT)</SelectItem>
+                        <SelectItem value="America/Argentina/Buenos_Aires">Argentina Time (ART)</SelectItem>
+                        <SelectItem value="America/La_Paz">Bolivia Time (BOT)</SelectItem>
+                        <SelectItem value="America/Sao_Paulo">Brasilia Time (BRT)</SelectItem>
+                        <SelectItem value="America/Santiago">Chile Standard Time (CLT)</SelectItem>
                       </SelectGroup>
                     </SelectContent>
                   </Select>

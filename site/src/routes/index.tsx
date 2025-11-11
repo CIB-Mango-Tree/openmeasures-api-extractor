@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
+import { toast } from 'sonner';
 import { useQueries, useFetchingQueryState, useSelectedQuery } from '@state/query';
-import { useLimitState } from '@state/limit';
+import { useLimitState, useLimitAlertState } from '@state/limit';
 import WebSocketConnection from '@lib/websocket';
 import { GETQueries } from '@lib/fetch/query';
 import { GETLimit } from '@lib/fetch/limit';
@@ -12,14 +13,16 @@ import { QueryBuilder } from '@components/builder';
 import { QueryTable } from '@components/table';
 import { QueryResultView } from '@components/results';
 import { QueryDetailsDialog } from '@components/details';
+import { Toaster } from '@components/ui/sonner';
 import { FETCH_UPDATE_PROGRESS, FETCH_INCOMPLETE, QUERY_COMPLETE, LIMIT_UPDATE, LIMIT_MAXED_OUT } from '@constants/status';
 import { FETCHING_QUERY_KEY, SELECTED_QUERY_KEY } from '@constants/local-storage';
 import type { ReactElement, FC } from 'react';
 import type { Query, QueryResponse } from '@appTypes/query';
-import type { Limit, LimitResponse } from '@appTypes/limit';
+import type { LimitResponse } from '@appTypes/limit';
 import type { APICollectionResponse, APIResponse } from '@appTypes/fetch';
 import type { FetchingQueryState, QueriesState } from '@state/query';
-import type { LimitState } from '@state/limit';
+import type { LimitState, LimitAlertState } from '@state/limit';
+import type { EventMessageData } from '@appTypes/event';
 
 export const Route = createFileRoute('/')({
   ssr: true,
@@ -29,6 +32,7 @@ export const Route = createFileRoute('/')({
 function App(): ReactElement<FC> {
   const queriesState = useQueries((state: QueriesState): QueriesState => state);
   const limitState = useLimitState((state: LimitState): LimitState => state);
+  const limitAlertState = useLimitAlertState((state: LimitAlertState): LimitAlertState => state);
   const fetchingQueryState = useFetchingQueryState((state: FetchingQueryState): FetchingQueryState => state);
   const connectionRef = useRef<WebSocketConnection | null>(null);
 
@@ -51,8 +55,8 @@ function App(): ReactElement<FC> {
       `${import.meta.env.VITE_API_URL.replace('http', 'ws')}/api/ws/updates`
     );
 
-    connectionRef.current.on(FETCH_UPDATE_PROGRESS, (data: any) => {
-      const query: Query = mapResponseToQuery(data);
+    connectionRef.current.on(FETCH_UPDATE_PROGRESS, (data: EventMessageData) => {
+      const query: Query = mapResponseToQuery(data.query as QueryResponse);
       const fetchingState = useFetchingQueryState.getState();
       const selectedQueryState = useSelectedQuery.getState();
       const queriesState = useQueries.getState();
@@ -63,50 +67,51 @@ function App(): ReactElement<FC> {
       queriesState.update(query);
     });
 
-    connectionRef.current.on(FETCH_INCOMPLETE, (data: any) => {
-      const query: Query = mapResponseToQuery(data);
-
+    connectionRef.current.on(FETCH_INCOMPLETE, (data: EventMessageData): void => {
+      const query: Query = mapResponseToQuery(data.query as QueryResponse);
       const fetchingState = useFetchingQueryState.getState();
       const queriesState = useQueries.getState();
       const selectedQueryState = useSelectedQuery.getState();
-      const limitState = useLimitState.getState();
 
       if (fetchingState.query?.id === query.id) {
         fetchingState.setQuery(query);
-        limitState.toggleLimitAlertDialog();
+        limitAlertState.setType('continue');
+        limitAlertState.toggleShow();
       }
-
-      if (selectedQueryState.selectedQuery?.id === query.id) {
-        selectedQueryState.setQuery(query);
-        limitState.toggleLimitAlertDialog();
-      }
+      if (selectedQueryState.selectedQuery?.id === query.id) selectedQueryState.setQuery(query);
 
       queriesState.update(query);
     });
 
-    connectionRef.current.on(QUERY_COMPLETE, (data: QueryResponse): void => {
-      const query: Query = mapResponseToQuery(data);
+    connectionRef.current.on(QUERY_COMPLETE, (data: EventMessageData): void => {
+      const query: Query = mapResponseToQuery(data.query as QueryResponse);
 
       const fetchingState = useFetchingQueryState.getState();
-      const queriesState = useQueries.getState();
+      const selectedState = useSelectedQuery.getState();
 
       if (fetchingState.query?.id === query.id) {
         fetchingState.setQuery(query);
       }
+
+      if (selectedState.selectedQuery?.id === query.id) {
+        selectedState.setQuery(query);
+        selectedState.setCurrentView('complete');
+      }
+
       queriesState.update(query);
+      toast.success('Extraction Complete', { description: `Data extraction for ${query.status} is complete!` });
     });
 
-    connectionRef.current.on(LIMIT_UPDATE, (data: LimitResponse): void => {
-      const limitState = useLimitState.getState();
-
-      limitState.set(mapResponseToLimit(data));
+    connectionRef.current.on(LIMIT_UPDATE, (data: EventMessageData): void => {
+      limitState.set(mapResponseToLimit(data as LimitResponse));
     });
 
-    connectionRef.current.on(LIMIT_MAXED_OUT, (data: LimitResponse): void => {
-      const limitState = useLimitState.getState();
+    connectionRef.current.on(LIMIT_MAXED_OUT, (data: EventMessageData): void => {
+      const alertState: LimitAlertState = useLimitAlertState.getState();
 
-      limitState.set(mapResponseToLimit(data));
-      limitState.toggleLimitAlertDialog();
+      limitState.set(mapResponseToLimit(data as LimitResponse));
+      alertState.setType('maxed_out');
+      if (!alertState.show) alertState.toggleShow();
     });
 
     const fetchingQueryID: string | null = window.localStorage.getItem(FETCHING_QUERY_KEY);
@@ -154,10 +159,9 @@ function App(): ReactElement<FC> {
     if (connectionRef.current == null) return;
 
     const currentStoredID = window.localStorage.getItem(FETCHING_QUERY_KEY);
-    const fetchingState = useFetchingQueryState.getState();
 
-    if (fetchingState.query != null) {
-      const newID = fetchingState.query.id;
+    if (fetchingQueryState.query != null) {
+      const newID = fetchingQueryState.query.id;
 
       if (currentStoredID !== newID) {
         if (currentStoredID) connectionRef.current.unsubscribe(currentStoredID);
@@ -169,7 +173,7 @@ function App(): ReactElement<FC> {
       return;
     }
 
-    if (fetchingState.query == null && currentStoredID != null) {
+    if (fetchingQueryState.query == null && currentStoredID != null) {
       connectionRef.current.unsubscribe(currentStoredID);
       window.localStorage.removeItem(FETCHING_QUERY_KEY);
     }
@@ -191,6 +195,7 @@ function App(): ReactElement<FC> {
       </section>
       <QueryDetailsDialog />
       <LimitAlertDialog />
+      <Toaster position="top-right" closeButton />
     </main>
   )
 }

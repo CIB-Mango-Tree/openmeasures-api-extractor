@@ -42,6 +42,8 @@ export function LimitAlert(): ReactElement<FC> {
 export function LimitCounter(): ReactElement<FC> {
   const count = useLimitState((state: LimitState): number => state.count);
 
+  console.log('limit count: ', count);
+
   return (
     <Card className="col-span-4 justify-start gap-0 py-4">
       <CardHeader>
@@ -66,8 +68,8 @@ export function LimitAlertContinueDialog(): ReactElement<FC> {
   const queriesState = useQueries((state: QueriesState): QueriesState => state);
   const handleDiscard = (): void => {
     limitAlertState.toggleShow();
-    fetchingQueryState.removeQuery();
     fetchingQueryState.toggleShow();
+    fetchingQueryState.removeQuery();
     window.localStorage.removeItem(FETCHING_QUERY_KEY);
   };
   const handleContinue = async (): Promise<void> => {
