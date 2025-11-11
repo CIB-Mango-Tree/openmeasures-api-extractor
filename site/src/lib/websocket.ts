@@ -2,11 +2,9 @@ import type { EventMessage, EventMessageData } from '@appTypes/event';
 
 export default class WebSocketConnection {
   public socket: WebSocket;
-  private eventManager: EventTarget;
 
   constructor(url: string) {
     this.socket = new WebSocket(url);
-    this.eventManager = new EventTarget();
     this.messageHandler = this.messageHandler.bind(this);
 
     this.socket.addEventListener("message", this.messageHandler);
@@ -17,15 +15,15 @@ export default class WebSocketConnection {
 
     if (message.event == null) return;
 
-    this.eventManager.dispatchEvent(new CustomEvent(message.event, { detail: message.data }));
+    this.socket.dispatchEvent(new CustomEvent(message.event, { detail: message.data }));
   }
 
   public on(event: string, callback: (data: EventMessageData) => void): void {
-    this.eventManager.addEventListener(event, (event: Event): void => callback((event as CustomEvent).detail as EventMessageData));
+    this.socket.addEventListener(event, (event: Event): void => callback((event as CustomEvent).detail as EventMessageData));
   }
 
   public off(event: string, callback: (data: any) => void): void {
-    this.eventManager.removeEventListener(event, callback);
+    this.socket.removeEventListener(event, callback);
   }
 
   public subscribe(topic: string): void {
