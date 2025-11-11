@@ -32,10 +32,11 @@ class CreateQueryValidator(BaseModel):
 
     @field_validator("end_date")
     @classmethod
-    def validate_end_date(cls, value: datetime) -> datetime:
-        now = datetime.now()
+    def validate_end_date(cls, value: datetime, info: ValidationInfo) -> datetime:
+        timezone: str = info.data.get("timezone", "")
+        now = datetime.now().replace(tzinfo=ZoneInfo(timezone))
 
-        if value > (now - relativedelta(months=6)):
+        if value.replace(tzinfo=ZoneInfo(timezone)) > (now - relativedelta(months=6)):
             raise PydanticCustomError(
                 "datetime_past",
                 "the end date must be at least 6 months in the past from today",
@@ -46,25 +47,24 @@ class CreateQueryValidator(BaseModel):
     @field_validator("start_date", mode="after")
     @classmethod
     def validate_start_date(cls, value: datetime, info: ValidationInfo) -> datetime:
-        now = datetime.now()
+        timezone: str = info.data.get("timezone", "")
+        now: datetime = datetime.now().replace(tzinfo=ZoneInfo(timezone))
+        localized_value: datetime = value.replace(tzinfo=ZoneInfo(timezone))
 
-        if value > (now - relativedelta(months=6)):
+        if localized_value > (now - relativedelta(months=6)):
             raise PydanticCustomError(
                 "date_past",
                 "the start date must be at least 6 months in the past from today",
             )
 
-        if "end_date" not in info.data:
-            return value
-
-        if value > info.data["end_date"]:
+        if localized_value > info.data["end_date"].replace(tzinfo=ZoneInfo(timezone)):
             raise PydanticCustomError(
                 "date_past", "the start date must not be greater than the end date"
             )
 
         return value
 
-    @field_validator("timezone")
+    @field_validator("timezone", mode="before")
     @classmethod
     def validate_timezone(cls, value: str) -> str:
         try:

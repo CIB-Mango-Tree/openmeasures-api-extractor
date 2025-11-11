@@ -38,7 +38,9 @@ class QueriesEndpoint(HTTPEndpoint):
         except ValidationError as err:
             return error_response(
                 UNPROCESSABLE_CONTENT,
-                err.errors(include_url=False, include_input=False),
+                err.errors(
+                    include_url=False, include_input=False, include_context=False
+                ),
             )
 
     async def delete(
@@ -55,7 +57,9 @@ class QueriesEndpoint(HTTPEndpoint):
         except ValidationError as err:
             return error_response(
                 UNPROCESSABLE_CONTENT,
-                err.errors(include_url=False, include_input=False),
+                err.errors(
+                    include_url=False, include_input=False, include_context=False
+                ),
             )
 
 
@@ -77,7 +81,9 @@ class QueryEndpoint(HTTPEndpoint):
         except ValidationError as err:
             return error_response(
                 UNPROCESSABLE_CONTENT,
-                err.errors(include_url=False, include_input=False),
+                err.errors(
+                    include_url=False, include_input=False, include_context=False
+                ),
             )
 
     async def patch(
@@ -101,7 +107,9 @@ class QueryEndpoint(HTTPEndpoint):
         except ValidationError as err:
             return error_response(
                 UNPROCESSABLE_CONTENT,
-                err.errors(include_url=False, include_input=False),
+                err.errors(
+                    include_url=False, include_input=False, include_context=False
+                ),
             )
 
     async def delete(
@@ -123,5 +131,7 @@ class QueryEndpoint(HTTPEndpoint):
         except ValidationError as err:
             return error_response(
                 UNPROCESSABLE_CONTENT,
-                err.errors(include_url=False, include_input=False),
+                err.errors(
+                    include_url=False, include_input=False, include_context=False
+                ),
             )
