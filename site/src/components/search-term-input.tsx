@@ -6,20 +6,21 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@components/ui/tooltip'
 import { Delete } from 'lucide-react';
 import { cn } from '@lib/utils';
 import { EQ, AND, OR, NOT } from '@constants/modifiers';
-import type { ReactElement, FC, ChangeEvent } from 'react';
-import type { SearchTermChangeValues, SearchTermModifier } from '@appTypes/term';
+import type { ReactElement, FC } from 'react';
+import type { SearchTermModifier } from '@appTypes/term';
+import type { RefCallback } from '@appTypes/ref';
 
 
 export interface SearchTermInputProps {
   index: string;
   modifier: SearchTermModifier | '';
-  term: string;
-  onChange: (values: SearchTermChangeValues) => void;
   disabled?: boolean;
   onButtonCLick?: (key: string) => void;
+  initTermRef: (id: string) => RefCallback;
+  onSelectChange: (id: string, value: SearchTermModifier) => void;
 };
 
-export default function SearchTermInput({ index, modifier, term, onChange, disabled = false, onButtonCLick }: SearchTermInputProps): ReactElement<FC> {
+export default function SearchTermInput({ index, modifier, initTermRef, onSelectChange, onButtonCLick, disabled = false }: SearchTermInputProps): ReactElement<FC> {
   const isDefault: boolean = index === 'default';
   const inputClasses: string = cn({
     'w-1/2': isDefault,
@@ -27,21 +28,7 @@ export default function SearchTermInput({ index, modifier, term, onChange, disab
   });
   const handleSelect = (value: string): void => {
     if (value === modifier) return;
-    onChange({
-      index,
-      term,
-      modifier: value as SearchTermModifier
-    });
-  };
-  const handleChange = (event: ChangeEvent<HTMLInputElement>): void => {
-    const value = event.currentTarget.value;
-    if (value === term) return;
-
-    onChange({
-      index,
-      modifier,
-      term: value
-    });
+    onSelectChange(index, value as SearchTermModifier);
   };
   const handleDeleteClick = (): void => {
     if (onButtonCLick != null) onButtonCLick(index);
@@ -49,7 +36,7 @@ export default function SearchTermInput({ index, modifier, term, onChange, disab
 
   return (
     <Field key={index} orientation="horizontal">
-      <Select disabled={disabled} value={modifier} onValueChange={handleSelect} >
+      <Select disabled={disabled} value={modifier} onValueChange={handleSelect}>
         <SelectTrigger className="w-1/2">
           <SelectValue placeholder="Select Modifier" />
         </SelectTrigger>
@@ -61,11 +48,10 @@ export default function SearchTermInput({ index, modifier, term, onChange, disab
         </SelectContent>
       </Select>
       <Input type="text"
+        ref={initTermRef(index)}
         disabled={disabled}
+        defaultValue=""
         placeholder="Type term here.."
-        autoComplete="off"
-        value={term}
-        onChange={handleChange}
         className={inputClasses} />
       {!isDefault && (
         <Tooltip delayDuration={1000}>

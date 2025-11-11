@@ -1,9 +1,10 @@
 import { EQ, AND, OR, NOT } from '@constants/modifiers';
 
 export type SearchTermModifier = typeof EQ | typeof AND | typeof OR | typeof NOT;
+export type SearchTermModifierStateValue = SearchTermModifier | '';
 
 export type SearchTermValues = {
-  modifier: SearchTermModifier | '';
+  modifier: SearchTermModifierStateValue;
   term: string;
 };
 

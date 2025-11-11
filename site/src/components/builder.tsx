@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { useLimitState, useLimitAlertState } from '@state/limit';
 import { useFetchingQueryState, useQueries } from '@state/query';
 import { formatISO } from 'date-fns';
@@ -15,13 +15,15 @@ import SearchTermInput from '@components/search-term-input';
 import { QUERY_COMPLETE } from '@constants/status';
 import { EQ } from '@constants/modifiers';
 import type { ReactElement, FC, FormEvent } from 'react';
-import type { SearchTermValues, SearchTermChangeValues } from '@appTypes/term';
+import type { SearchTermModifier, SearchTermValues, SearchTermModifierStateValue } from '@appTypes/term';
 import type { CreateQueryPayload, QueryTerm, Query } from '@appTypes/query';
+import type { RefCallback } from '@appTypes/ref';
 import type { LimitState, LimitAlertState } from '@state/limit';
 import type { FetchingQueryState, QueriesState } from '@state/query';
 
 export type SearchTermStateValues = SearchTermValues & { first?: boolean; };
-export type SearchTermMap = { [index: string]: SearchTermValues; };
+export type SearchTermModifierMap = { [index: string]: SearchTermModifierStateValue; };
+export type SearchTermRefMap = { [index: string]: HTMLInputElement; };
 
 export function QueryBuilder(): ReactElement<FC> {
   const defaultTimezone = useMemo<string>((): string => new Intl.DateTimeFormat().resolvedOptions().timeZone, []);
@@ -34,35 +36,40 @@ export function QueryBuilder(): ReactElement<FC> {
   const [platform, setPlatform] = useState<string>('');
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
-  const [searchTerms, setSearchTerms] = useState<SearchTermMap>({
-    'default': { modifier: EQ, term: '' }
-  });
+  const [modifiers, setModifiers] = useState<SearchTermModifierMap>({ default: EQ });
+  const searchTermsRef = useRef<SearchTermRefMap>({});
   const isStateEmpty: boolean = (
     (timezone.length === 0 || timezone === defaultTimezone) && platform.length === 0 && startDate == null && endDate == null &&
-    Object.keys(searchTerms).length === 1 && searchTerms['default'].term.length === 0
+    Object.keys(modifiers).length === 1 && modifiers['default'].length === 0 &&
+    (Object.keys(searchTermsRef.current).length === 0 || searchTermsRef.current['default']?.value.length === 0)
   );
   const isNotSubmittable: boolean = (
-    timezone.length === 0 || platform.length === 0 || startDate == null || endDate == null || searchTerms['default'].term.length === 0
+    timezone.length === 0 || platform.length === 0 || startDate == null || endDate == null || searchTermsRef.current['default'].value.length === 0 || modifiers['default'].length === 0
   );
   const handleStartDateChange = (date?: Date): void => setStartDate(date || null);
   const handleEndDateChange = (date?: Date): void => setEndDate(date || null);
-  const handleSearchTermChange = (changeValues: SearchTermChangeValues): void => {
-    setSearchTerms((state: SearchTermMap): SearchTermMap => ({
-      ...state,
-      [changeValues.index]: { modifier: changeValues.modifier, term: changeValues.term }
-    }));
+  const handleTermRefAdd = (id: string): RefCallback => {
+    return (ref: HTMLInputElement | null): void => {
+      searchTermsRef.current[id] = ref as HTMLInputElement;
+    };
   };
+  const handleSelectChange = (id: string, value: SearchTermModifier): void => setModifiers((state: SearchTermModifierMap): SearchTermModifierMap => ({
+    ...state,
+    [id]: value
+  }));
   const handleSearchTermDelete = (key: string): void => {
-    setSearchTerms((state: SearchTermMap): SearchTermMap => {
-      const { [key]: _, ...terms } = state;
+    const { [key]: _, ...refs } = searchTermsRef.current;
+    searchTermsRef.current = refs;
+    setModifiers((state: SearchTermModifierMap): SearchTermModifierMap => {
+      const { [key]: _, ...modifiers } = state;
 
-      return terms;
+      return modifiers;
     });
   };
   const handleSearchTermAdd = (): void => {
-    setSearchTerms((state: SearchTermMap): SearchTermMap => ({
+    setModifiers((state: SearchTermModifierMap): SearchTermModifierMap => ({
       ...state,
-      [self.crypto.randomUUID()]: { modifier: '', term: '' }
+      [self.crypto.randomUUID()]: ''
     }));
   };
   const handleClear = (): void => {
@@ -70,9 +77,10 @@ export function QueryBuilder(): ReactElement<FC> {
     if (startDate != null) setStartDate(null);
     if (endDate != null) setEndDate(null);
     if (platform.length > 0) setPlatform('');
-    if (Object.keys(searchTerms).length > 1 || searchTerms['default'].term.length > 0) setSearchTerms({
-      ['default']: { modifier: EQ, term: '' }
-    });
+    if (Object.keys(modifiers).length > 1 || searchTermsRef.current['default'].value.length > 0 || modifiers['default'].length > 0) {
+      setModifiers({ default: EQ });
+      searchTermsRef.current = { default: searchTermsRef.current['default'] };
+    }
   };
   const handleSubmit = async (event: FormEvent): Promise<void> => {
     event.preventDefault();
@@ -90,7 +98,10 @@ export function QueryBuilder(): ReactElement<FC> {
       platform,
       start_date: formatISO(startDate as Date, { format: 'extended' }),
       end_date: formatISO(endDate as Date, { format: 'extended' }),
-      terms: Object.values(searchTerms) as Array<QueryTerm>
+      terms: Object.entries(modifiers).map((item: [string, SearchTermModifierStateValue]): QueryTerm => ({
+        modifier: item[1] as SearchTermModifier,
+        term: searchTermsRef.current[item[0]].value
+      })) as Array<QueryTerm>
     };
     const response = await POSTQuery(payload);
     const query: Query = mapResponseToQuery(response.data);
@@ -218,17 +229,17 @@ export function QueryBuilder(): ReactElement<FC> {
               </FieldGroup>
               <FieldGroup>
                 <FieldLabel>Search</FieldLabel>
-                {Object.entries(searchTerms).map((item: [string, SearchTermValues]): ReactElement<FC> => {
+                {Object.entries(modifiers).map((item: [string, SearchTermModifierStateValue]): ReactElement<FC> => {
                   const index: string = item[0];
-                  const entry: SearchTermValues = item[1];
+                  const modifier = item[1] as SearchTermModifier;
 
                   return <SearchTermInput
                     key={index}
                     index={index}
                     disabled={submitDisabled}
-                    modifier={entry.modifier}
-                    term={entry.term}
-                    onChange={handleSearchTermChange}
+                    modifier={modifier}
+                    initTermRef={handleTermRefAdd}
+                    onSelectChange={handleSelectChange}
                     onButtonCLick={handleSearchTermDelete} />
                 })}
                 <Field orientation="horizontal">
