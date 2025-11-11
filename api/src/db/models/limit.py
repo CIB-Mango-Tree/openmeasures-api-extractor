@@ -10,7 +10,7 @@ class QueryLimit(Base):
         Integer, primary_key=True, nullable=False, default=1
     )
     count: Mapped[int] = mapped_column(Integer, nullable=False, default=39)
-    percentage: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    percentage: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
     previous_request_date: Mapped[datetime | None] = mapped_column(
         DateTime, nullable=True
     )
