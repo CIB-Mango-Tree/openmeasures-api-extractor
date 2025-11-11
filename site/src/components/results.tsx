@@ -17,13 +17,15 @@ export function QueryResultView(): ReactElement<FC> {
         <CardTitle>Export data</CardTitle>
         <CardDescription>Apply filters first to start an extraction</CardDescription>
       </CardHeader>
-      {fetchQueryState.showProgress ?? (
+      {fetchQueryState.showProgress && (
         <CardContent>
-          <Spinner />
-          <span>We are preparing your file...</span>
-          <div className="grid grid-flow-col justify-between">
-            <Progress value={progressPercentage} />
-            <span>{progressPercentage}%</span>
+          <div className="grid grid-flow-col justify-start items-center">
+            <Spinner />
+            <span className="pl-2">We are preparing your file...</span>
+          </div>
+          <div className="grid grid-flow-col grid-cols-12 justify-between items-center">
+            <Progress className="h-3 col-span-10" value={progressPercentage} />
+            <span className="col-span-2 text-center">{progressPercentage}%</span>
           </div>
         </CardContent>
       )}

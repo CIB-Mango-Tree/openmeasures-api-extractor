@@ -40,7 +40,7 @@ export function QueryBuilder(): ReactElement<FC> {
   const searchTermsRef = useRef<SearchTermRefMap>({});
   const isStateEmpty: boolean = (
     (timezone.length === 0 || timezone === defaultTimezone) && platform.length === 0 && startDate == null && endDate == null &&
-    Object.keys(modifiers).length === 1 && modifiers['default'].length === 0 &&
+    Object.keys(modifiers).length === 1 && modifiers['default'] === EQ &&
     (Object.keys(searchTermsRef.current).length === 0 || searchTermsRef.current['default']?.value.length === 0)
   );
   const isNotSubmittable: boolean = (
@@ -80,6 +80,7 @@ export function QueryBuilder(): ReactElement<FC> {
     if (Object.keys(modifiers).length > 1 || searchTermsRef.current['default'].value.length > 0 || modifiers['default'].length > 0) {
       setModifiers({ default: EQ });
       searchTermsRef.current = { default: searchTermsRef.current['default'] };
+      searchTermsRef.current['default'].value = '';
     }
   };
   const handleSubmit = async (event: FormEvent): Promise<void> => {
@@ -108,14 +109,12 @@ export function QueryBuilder(): ReactElement<FC> {
 
     handleClear();
     fetchingQueryState.setQuery(query);
-    queriesState.push(query);
     fetchingQueryState.toggleShow();
+    queriesState.push(query);
   };
 
   useEffect((): void => {
     if (fetchingQueryState.query == null || fetchingQueryState.query.status !== QUERY_COMPLETE) return;
-
-    fetchingQueryState.toggleShow();
     setSubmitDisabled(false);
   }, [fetchingQueryState.query]);
 

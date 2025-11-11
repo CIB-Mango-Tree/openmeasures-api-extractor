@@ -56,7 +56,7 @@ function App(): ReactElement<FC> {
     );
 
     connectionRef.current.on(FETCH_UPDATE_PROGRESS, (data: EventMessageData) => {
-      const query: Query = mapResponseToQuery(data.query as QueryResponse);
+      const query: Query = mapResponseToQuery(data as QueryResponse);
       const fetchingState = useFetchingQueryState.getState();
       const selectedQueryState = useSelectedQuery.getState();
       const queriesState = useQueries.getState();
@@ -91,6 +91,7 @@ function App(): ReactElement<FC> {
 
       if (fetchingState.query?.id === query.id) {
         fetchingState.setQuery(query);
+        fetchingState.toggleShow();
       }
 
       if (selectedState.selectedQuery?.id === query.id) {
@@ -124,9 +125,9 @@ function App(): ReactElement<FC> {
       if (query != null && query.status !== QUERY_COMPLETE) {
         const fetchingState = useFetchingQueryState.getState();
 
+        connectionRef.current.subscribe(fetchingQueryID);
         fetchingState.setQuery(query);
         fetchingState.toggleShow();
-        connectionRef.current.subscribe(fetchingQueryID);
 
       } else {
         window.localStorage.removeItem(FETCHING_QUERY_KEY);
