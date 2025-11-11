@@ -2,10 +2,12 @@ import type { EventMessage, EventMessageData } from '@appTypes/event';
 
 export default class WebSocketConnection {
   private url: string;
+  private eventManager: EventTarget;
   public socket: WebSocket;
 
   constructor(url: string) {
     this.url = url;
+    this.eventManager = new EventTarget();
     this.socket = new WebSocket(this.url);
     this.messageHandler = this.messageHandler.bind(this);
     this.reconnectHandler = this.reconnectHandler.bind(this);
@@ -21,7 +23,7 @@ export default class WebSocketConnection {
 
     if (message.event == null) return;
 
-    this.socket.dispatchEvent(new CustomEvent(message.event, { detail: message.data }));
+    this.eventManager.dispatchEvent(new CustomEvent(message.event, { detail: message.data }));
   }
 
   private reconnectHandler(): void {
@@ -39,11 +41,11 @@ export default class WebSocketConnection {
   }
 
   public on(event: string, callback: (data: EventMessageData) => void): void {
-    this.socket.addEventListener(event, (event: Event): void => callback((event as CustomEvent).detail as EventMessageData));
+    this.eventManager.addEventListener(event, (event: Event): void => callback((event as CustomEvent).detail as EventMessageData));
   }
 
   public off(event: string, callback: (data: any) => void): void {
-    this.socket.removeEventListener(event, callback);
+    this.eventManager.removeEventListener(event, callback);
   }
 
   public subscribe(topic: string): void {
