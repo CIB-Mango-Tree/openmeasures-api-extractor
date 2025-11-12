@@ -1,15 +1,11 @@
 "use client"
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { parse, format, sub } from 'date-fns';
 import { ChevronDownIcon } from 'lucide-react';
-import { parse, format } from 'date-fns';
 import { Button } from '@components/ui/button';
 import { Calendar } from '@components/ui/calendar';
 import { Input } from '@components/ui/input';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import type { ReactElement, FC, ChangeEvent } from 'react';
 
 export interface DateTimePickerProps {
@@ -23,6 +19,7 @@ export default function DateTimePicker({ value, disabled, onChange }: DateTimePi
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<Date | null>(null);
   const [time, setTime] = useState<string>('00:00:00');
+  const cuttoffDate = useMemo<Date>((): Date => sub(new Date(), { months: 6 }), [open]);
   const handleDateSelect = (date?: Date): void => {
     setDate(date || null);
     setOpen(false);
@@ -89,6 +86,7 @@ export default function DateTimePicker({ value, disabled, onChange }: DateTimePi
             selected={date != null ? date : undefined}
             captionLayout="dropdown"
             disabled={disabled}
+            endMonth={cuttoffDate}
             onSelect={handleDateSelect}
           />
         </PopoverContent>

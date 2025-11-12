@@ -3,6 +3,7 @@ import { useLimitState, useLimitAlertState } from '@state/limit';
 import { useFetchingQueryState, useQueries } from '@state/query';
 import { formatISO } from 'date-fns';
 import { POSTQuery } from '@lib/fetch/query';
+import { GETPlatforms } from '@lib/fetch/platform';
 import { mapResponseToQuery } from '@lib/map';
 import { SquarePlus } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent } from '@components/ui/card';
@@ -17,6 +18,8 @@ import { EQ } from '@constants/modifiers';
 import type { ReactElement, FC, FormEvent } from 'react';
 import type { SearchTermModifier, SearchTermValues, SearchTermModifierStateValue } from '@appTypes/term';
 import type { CreateQueryPayload, QueryTerm, Query } from '@appTypes/query';
+import type { Platform } from '@appTypes/platform';
+import type { APICollectionResponse } from '@appTypes/fetch';
 import type { RefCallback } from '@appTypes/ref';
 import type { LimitState, LimitAlertState } from '@state/limit';
 import type { FetchingQueryState, QueriesState } from '@state/query';
@@ -31,6 +34,7 @@ export function QueryBuilder(): ReactElement<FC> {
   const fetchingQueryState = useFetchingQueryState((state: FetchingQueryState): FetchingQueryState => state);
   const limitState = useLimitState((state: LimitState): LimitState => state);
   const limitAlertState = useLimitAlertState((state: LimitAlertState): LimitAlertState => state);
+  const [platforms, setPlatforms] = useState<Array<Platform>>([]);
   const [submitDisabled, setSubmitDisabled] = useState<boolean>(false);
   const [timezone, setTimezone] = useState<string>(defaultTimezone);
   const [platform, setPlatform] = useState<string>('');
@@ -113,6 +117,14 @@ export function QueryBuilder(): ReactElement<FC> {
     queriesState.push(query);
   };
 
+  useEffect((): void => {
+    const func = async (): Promise<void> => {
+      const response: APICollectionResponse<Platform> = await GETPlatforms();
+      setPlatforms(response.data);
+    };
+
+    func();
+  }, []);
   useEffect((): void => {
     if (fetchingQueryState.query == null || fetchingQueryState.query.status !== QUERY_COMPLETE) return;
     setSubmitDisabled(false);
@@ -220,8 +232,11 @@ export function QueryBuilder(): ReactElement<FC> {
                       <SelectValue placeholder="Select a platform" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="truth_social">Truth Social</SelectItem>
-                      <SelectItem value="bluesky">Bleusky</SelectItem>
+                      {platforms.map((item: Platform, index: number): ReactElement<FC> => (
+                        <SelectItem key={`platform-item-${index + 1}`} value={item.value}>
+                          {item.readable}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </Field>
