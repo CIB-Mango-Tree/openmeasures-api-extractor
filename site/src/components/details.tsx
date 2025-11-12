@@ -12,10 +12,11 @@ import { Badge } from '@components/ui/badge';
 import { Separator } from '@components/ui/separator';
 import { ExportButton } from '@components/export';
 import { QUERY_COMPLETE, FETCH_INCOMPLETE, FETCH_CONTINUE, CLEAN_INCOMPLETE, PARSE_INCOMPLETE } from '@constants/status';
+import { EQ, AND, OR, NOT } from '@constants/modifiers';
 import type { ReactElement, FC } from 'react';
 import type { SelectedQueryState, CurrentViewType } from '@state/query';
 import type { LimitState, LimitAlertState } from '@state/limit';
-import type { Query, QueryResponse } from '@appTypes/query';
+import type { Query, QueryResponse, QueryTerm } from '@appTypes/query';
 import type { APIResponse } from '@appTypes/fetch';
 
 export function QueryDetailsHeader(): ReactElement<FC> {
@@ -87,6 +88,11 @@ export function QueryDetailsFooter(): ReactElement<FC> {
     state.setQuery(query);
     state.setCurrentView('progress');
   };
+  const isDisabled: boolean = (
+    state.selectedQuery?.status !== (FETCH_INCOMPLETE as string) &&
+    state.selectedQuery?.status !== (CLEAN_INCOMPLETE as string) &&
+    state.selectedQuery?.status !== (PARSE_INCOMPLETE as string)
+  );
 
   return (
     <DialogFooter className="sm:justify-between">
@@ -100,6 +106,7 @@ export function QueryDetailsFooter(): ReactElement<FC> {
       {state.selectedQuery?.status !== QUERY_COMPLETE && (
         <Button variant="default"
           className="cursor-pointer"
+          disabled={isDisabled}
           onClick={handleClick}>
           Complete Extraction
         </Button>
@@ -114,7 +121,7 @@ export function QueryDetails(): ReactElement<FC> {
   const completedPercentage = selectedQuery != null ? Math.round(selectedQuery?.percentage * 100) : 0;
 
   return (
-    <>
+    <div className="grid grid-flow-row gap-y-2 overflow-y-auto max-h-[25rem]">
       <div className="grid grid-flow-row gap-y-2">
         <div className="grid grid-flow-col grid-cols-8">
           <div className="grid grid-flow-row col-span-4">
@@ -140,6 +147,12 @@ export function QueryDetails(): ReactElement<FC> {
           <div className="grid grid-flow-row col-span-4">
             <h3 className="font-medium text-sm">Requests Used</h3>
             <span className="text-sm text-muted-foreground">{selectedQuery?.queriesUsed}</span>
+          </div>
+        </div>
+        <div className="grid grid-flow-col grid-cols-8">
+          <div className="grid grid-flow-row col-span-4">
+            <h3 className="font-medium text-sm">Rows Fetched</h3>
+            <span className="text-sm text-muted-foreground">{selectedQuery?.rowsFetched}</span>
           </div>
         </div>
       </div>
@@ -175,8 +188,35 @@ export function QueryDetails(): ReactElement<FC> {
             </span>
           </div>
         </div>
+        <div className="grid grid-flow-row gap-y-2">
+          <h3 className="font-medium text-sm">Search Terms</h3>
+          <ul className="grid grid-flow-row pl-2">
+            {
+              selectedQuery?.terms.map((item: QueryTerm, index: number): ReactElement<FC> => {
+                let modifierLabel: string = '-';
+
+                if (item.modifier === EQ) modifierLabel = 'Contains';
+                if (item.modifier === NOT) modifierLabel = 'Does Not Contain';
+                if (item.modifier === AND) modifierLabel = 'Also Contains';
+                if (item.modifier === OR) modifierLabel = 'Or Contains';
+
+                return (
+                  <li key={`search-term-item-${index + 1}`}
+                    className="grid grid-flow-col grid-cols-12 items-center justify-start">
+                    <span className="text-sm text-muted-foreground font-medium col-span-3">
+                      {modifierLabel}
+                    </span>
+                    <span className="text-sm text-foreground truncate col-span-9">
+                      {item.term}
+                    </span>
+                  </li>
+                );
+              })
+            }
+          </ul>
+        </div>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -192,7 +232,7 @@ export function QueryDetailsProgress(): ReactElement<FC> {
       </div>
       <div className="grid grid-flow-col grid-cols-12 justify-between items-center">
         <Progress className="h-3 col-span-10" value={progressPercentage} />
-        <span className="col-end-2 text-center">{progressPercentage}%</span>
+        <span className="col-span-2 text-center">{progressPercentage}%</span>
       </div>
     </div>
   );
@@ -203,14 +243,49 @@ export function QueryDetailsCompletion(): ReactElement<FC> {
   const progressPercentage: number = selectedQuery != null ? Math.round(selectedQuery.percentage * 100) : 0;
 
   return (
-    <div className="grid grid-flow-row gap-y-2">
+    <div className="grid grid-flow-row gap-y-4">
       <div className="grid grid-flow-row">
-        <h3 className="font-medium text-sm">Extraction Completion</h3>
-        <span className="text-sm text-muted-foreground">{progressPercentage}%</span>
+        <div className="grid grid-flow-col grid-cols-12">
+          <div className="grid grid-flow-row col-span-6">
+            <h3 className="font-medium text-sm">Extraction Completion</h3>
+            <span className="text-sm text-muted-foreground">{progressPercentage}%</span>
+          </div>
+          <div className="grid grid-flow-row col-span-6">
+            <h3 className="font-medium text-sm">Requests Used</h3>
+            <span className="text-sm text-muted-foreground">{selectedQuery?.queriesUsed}</span>
+          </div>
+        </div>
       </div>
       <div className="grid grid-flow-row">
-        <h3 className="font-medium text-sm">Requests Used</h3>
-        <span className="text-sm text-muted-foreground">{selectedQuery?.queriesUsed}</span>
+        <div className="grid grid-flow-col grid-cols-12">
+          <div className="grid grid-flow-row col-span-6">
+            <h3 className="font-medium text-sm">Rows Fetched</h3>
+            <span className="text-sm text-muted-foreground">{selectedQuery?.rowsFetched}</span>
+          </div>
+        </div>
+      </div>
+      <Separator />
+      <div className="grid grid-flow-col grid-cols-12">
+        <div className="grid grid-flow-row col-span-6">
+          <h3 className="font-medium text-sm">Time Zone</h3>
+          <span className="text-sm text-muted-foreground">
+            {selectedQuery?.timezone}
+          </span>
+        </div>
+      </div>
+      <div className="grid grid-flow-col grid-cols-12">
+        <div className="grid grid-flow-row col-span-6">
+          <h3 className="font-medium text-sm">From</h3>
+          <span className="text-sm text-muted-foreground">
+            {selectedQuery?.startDate != null ? format(new Date(selectedQuery?.startDate), 'yyyy/MM/dd hh:mm:ss a') : '-'}
+          </span>
+        </div>
+        <div className="grid grid-flow-row col-span-6">
+          <h3 className="font-medium text-sm">To</h3>
+          <span className="text-sm text-muted-foreground">
+            {selectedQuery?.endDate != null ? format(new Date(selectedQuery?.endDate), 'yyyy/MM/dd hh:mm:ss a') : '-'}
+          </span>
+        </div>
       </div>
     </div>
   );

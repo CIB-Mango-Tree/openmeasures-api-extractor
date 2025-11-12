@@ -14,7 +14,7 @@ import { QueryTable } from '@components/table';
 import { QueryResultView } from '@components/results';
 import { QueryDetailsDialog } from '@components/details';
 import { Toaster } from '@components/ui/sonner';
-import { FETCH_UPDATE_PROGRESS, FETCH_INCOMPLETE, QUERY_COMPLETE, LIMIT_UPDATE, LIMIT_MAXED_OUT } from '@constants/status';
+import { FETCH_UPDATE_PROGRESS, CLEAN_IN_PROGRESS, PARSE_IN_PROGRESS, FETCH_INCOMPLETE, QUERY_COMPLETE, LIMIT_UPDATE, LIMIT_MAXED_OUT } from '@constants/status';
 import { FETCHING_QUERY_KEY, SELECTED_QUERY_KEY } from '@constants/local-storage';
 import type { ReactElement, FC } from 'react';
 import type { Query, QueryResponse } from '@appTypes/query';
@@ -36,6 +36,18 @@ function App(): ReactElement<FC> {
   const fetchingQueryState = useFetchingQueryState((state: FetchingQueryState): FetchingQueryState => state);
   const selectedQueryState = useSelectedQuery((state: SelectedQueryState): SelectedQueryState => state);
   const connectionRef = useRef<WebSocketConnection | null>(null);
+  const handleInProgressUpdate = (data: EventMessageData): void => {
+    const query: Query = mapResponseToQuery(data.query as QueryResponse);
+    const fetchingState = useFetchingQueryState.getState();
+    const selectedQueryState = useSelectedQuery.getState();
+    const queriesState = useQueries.getState();
+
+    if (fetchingState.query?.id === query.id) fetchingState.setQuery(query);
+    if (selectedQueryState.selectedQuery?.id === query.id) selectedQueryState.setQuery(query);
+
+    queriesState.update(query);
+  }
+
 
   useEffect(() => {
     const func = async (): Promise<void> => {
@@ -56,7 +68,7 @@ function App(): ReactElement<FC> {
       `${import.meta.env.VITE_API_URL.replace('http', 'ws')}/api/ws/updates`
     );
 
-    connectionRef.current.on(FETCH_UPDATE_PROGRESS, (data: EventMessageData) => {
+    connectionRef.current.on(FETCH_UPDATE_PROGRESS, (data: EventMessageData): void => {
       const query: Query = mapResponseToQuery(data as QueryResponse);
       const fetchingState = useFetchingQueryState.getState();
       const selectedQueryState = useSelectedQuery.getState();
@@ -67,7 +79,8 @@ function App(): ReactElement<FC> {
 
       queriesState.update(query);
     });
-
+    connectionRef.current.on(CLEAN_IN_PROGRESS, handleInProgressUpdate);
+    connectionRef.current.on(PARSE_IN_PROGRESS, handleInProgressUpdate);
     connectionRef.current.on(FETCH_INCOMPLETE, (data: EventMessageData): void => {
       const query: Query = mapResponseToQuery(data.query as QueryResponse);
       const fetchingState = useFetchingQueryState.getState();
@@ -83,7 +96,6 @@ function App(): ReactElement<FC> {
 
       queriesState.update(query);
     });
-
     connectionRef.current.on(QUERY_COMPLETE, (data: EventMessageData): void => {
       const query: Query = mapResponseToQuery(data.query as QueryResponse);
 
@@ -101,14 +113,11 @@ function App(): ReactElement<FC> {
       }
 
       queriesState.update(query);
-      connectionRef.current?.unsubscribe(query.id);
       toast.success('Extraction Complete', { description: `Data extraction for ${query.status} is complete!` });
     });
-
     connectionRef.current.on(LIMIT_UPDATE, (data: EventMessageData): void => {
       limitState.set(mapResponseToLimit(data as LimitResponse));
     });
-
     connectionRef.current.on(LIMIT_MAXED_OUT, (data: EventMessageData): void => {
       const alertState: LimitAlertState = useLimitAlertState.getState();
       const fetchingState: FetchingQueryState = useFetchingQueryState.getState();
@@ -160,7 +169,7 @@ function App(): ReactElement<FC> {
     }
 
     return (): void => {
-      if (connectionRef.current != null) connectionRef.current.close();
+      connectionRef.current?.close();
     };
   }, []);
 
@@ -179,11 +188,12 @@ function App(): ReactElement<FC> {
         window.localStorage.setItem(FETCHING_QUERY_KEY, newID);
         connectionRef.current.subscribe(newID);
       }
-
-      return;
     }
 
-    if (fetchingQueryState.query == null && currentStoredID != null) {
+    if (
+      (fetchingQueryState.query == null && currentStoredID != null) ||
+      (fetchingQueryState.query != null && fetchingQueryState.query.status === QUERY_COMPLETE && currentStoredID != null)
+    ) {
       connectionRef.current.unsubscribe(currentStoredID);
       window.localStorage.removeItem(FETCHING_QUERY_KEY);
     }
@@ -194,27 +204,30 @@ function App(): ReactElement<FC> {
 
     const currentStoredID = window.localStorage.getItem(SELECTED_QUERY_KEY);
 
-    if (selectedQueryState.selectedQuery != null) {
+    if (
+      selectedQueryState.selectedQuery != null &&
+      selectedQueryState.selectedQuery.status !== QUERY_COMPLETE
+    ) {
       const newID = selectedQueryState.selectedQuery.id;
 
-      if (currentStoredID !== newID) {
-        if (currentStoredID) connectionRef.current.unsubscribe(currentStoredID);
+      if (currentStoredID === newID) return;
+      if (currentStoredID) connectionRef.current.unsubscribe(currentStoredID);
 
-        window.localStorage.setItem(SELECTED_QUERY_KEY, newID);
-        connectionRef.current.subscribe(newID);
-      }
-
-      return;
+      window.localStorage.setItem(SELECTED_QUERY_KEY, newID);
+      connectionRef.current.subscribe(newID);
     }
 
-    if (selectedQueryState.selectedQuery == null && currentStoredID != null) {
+    if (
+      (selectedQueryState.selectedQuery == null && currentStoredID != null) ||
+      (selectedQueryState.selectedQuery != null && selectedQueryState.selectedQuery.status === QUERY_COMPLETE && currentStoredID != null)
+    ) {
       connectionRef.current.unsubscribe(currentStoredID);
       window.localStorage.removeItem(SELECTED_QUERY_KEY);
     }
   }, [selectedQueryState.selectedQuery]);
 
   return (
-    <main className="grid grid-flow-row auto-rows-min gap-y-8 py-8 px-52">
+    <main className="grid grid-flow-row auto-rows-min gap-y-4 py-8 px-52">
       <Hero />
       <section className="grid grid-flow-col grid-cols-12 gap-x-4">
         <LimitAlert />

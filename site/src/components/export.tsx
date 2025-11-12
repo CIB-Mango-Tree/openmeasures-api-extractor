@@ -28,19 +28,22 @@ export function ExportButton({ id, disabled = false }: ExportButtonProps): React
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem>
-          <a className="inline-flex items-center" href={id != null ? `${baseUrl}/csv` : ''}>
+          <a className="inline-flex items-center w-full"
+            href={id != null ? `${baseUrl}/csv` : '#'}>
             <FileSpreadsheet />
             <span className="pl-1 font-bold">CSV</span>
           </a>
         </DropdownMenuItem>
         <DropdownMenuItem>
-          <a className="inline-flex items-center" href={id != null ? `${baseUrl}/excel` : ''}>
+          <a className="inline-flex items-center w-full"
+            href={id != null ? `${baseUrl}/excel` : '#'}>
             <Sheet />
             <span className="pl-1 font-bold">EXCEL</span>
           </a>
         </DropdownMenuItem>
         <DropdownMenuItem>
-          <a className="inline-flex items-center" href={id != null ? `${baseUrl}/json` : ''}>
+          <a className="inline-flex items-center w-full"
+            href={id != null ? `${baseUrl}/json` : '#'}>
             <FileJson2 />
             <span className="pl-1 font-bold">JSON</span>
           </a>

@@ -16,7 +16,6 @@ import {
 } from '@components/ui/alert-dialog';
 import { AlertCircleIcon, TriangleAlert } from 'lucide-react';
 import { FETCH_CONTINUE } from '@constants/status';
-import { FETCHING_QUERY_KEY } from '@constants/local-storage';
 import type { ReactElement, FC } from 'react';
 import type { Query, QueryResponse } from '@appTypes/query';
 import type { APIResponse } from '@appTypes/fetch';
@@ -68,7 +67,6 @@ export function LimitAlertContinueDialog(): ReactElement<FC> {
     limitAlertState.toggleShow();
     fetchingQueryState.removeQuery();
     fetchingQueryState.toggleShow();
-    window.localStorage.removeItem(FETCHING_QUERY_KEY);
   };
   const handleContinue = async (): Promise<void> => {
     const response: APIResponse<QueryResponse> = await PATCHQuery(fetchingQueryState.query?.id as string, FETCH_CONTINUE);
@@ -90,8 +88,14 @@ export function LimitAlertContinueDialog(): ReactElement<FC> {
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>
-        <AlertDialogCancel onClick={handleDiscard}>Discard</AlertDialogCancel>
-        <AlertDialogAction onClick={handleContinue}>Complete with more requests</AlertDialogAction>
+        <AlertDialogCancel onClick={handleDiscard}
+          className="cursor-pointer">
+          Discard
+        </AlertDialogCancel>
+        <AlertDialogAction onClick={handleContinue}
+          className="cursor-pointer">
+          Complete with more requests
+        </AlertDialogAction>
       </AlertDialogFooter>
     </AlertDialogContent>
   );
@@ -114,7 +118,8 @@ export function LimitAlertMaxedOutDialog(): ReactElement<FC> {
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>
-        <AlertDialogCancel onClick={(): void => toggleShow()}>
+        <AlertDialogCancel onClick={(): void => toggleShow()}
+          className="cursor-pointer">
           Close
         </AlertDialogCancel>
       </AlertDialogFooter>
