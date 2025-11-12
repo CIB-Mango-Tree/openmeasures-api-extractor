@@ -1,4 +1,5 @@
 from starlette.applications import Starlette
+from starlette.routing import Route
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 from uvicorn import run
@@ -25,6 +26,7 @@ from src.endpoints import (
     QueryLimitEndpoint,
     QueryExportEndpoint,
     UpdateStreamEndpoint,
+    PlatformsEndpoint,
 )
 from src.settings import HOST, PORT, DATABASE_URL, DEBUG
 import src.log
@@ -63,6 +65,7 @@ def main() -> None:
         ),
         query_limit_router.route("/api/limit", endpoint=QueryLimitEndpoint),
         websocket_router.ws_route("/api/ws/updates", endpoint=UpdateStreamEndpoint),
+        Route("/api/platforms", endpoint=PlatformsEndpoint),
     ]
     app = Starlette(
         debug=DEBUG,

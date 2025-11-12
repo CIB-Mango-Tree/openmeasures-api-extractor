@@ -5,7 +5,7 @@ from .term import TermValidator
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from zoneinfo import ZoneInfo
-from ..utils.constants import EQ
+from ..utils.constants import EQ, PLATFORMS
 
 
 class CreateQueryValidator(BaseModel):
@@ -15,6 +15,21 @@ class CreateQueryValidator(BaseModel):
     end_date: datetime
     start_date: datetime
 
+    @field_validator("platform")
+    @classmethod
+    def validate_platform(cls, value: str) -> str:
+        if len(value) == 0:
+            raise PydanticCustomError(
+                "value_error", "a valid provider must be provided"
+            )
+
+        if value not in PLATFORMS:
+            raise PydanticCustomError(
+                "value_error", "a valid provider must be provided"
+            )
+
+        return value
+
     @field_validator("terms")
     @classmethod
     def validate_terms(cls, value: list[TermValidator]) -> list[TermValidator]:
@@ -23,7 +38,7 @@ class CreateQueryValidator(BaseModel):
                 "value_error", "At least one term must be provided"
             )
 
-        if value[0].modifier != EQ:
+        if value[0].modifier.value != EQ:
             raise PydanticCustomError(
                 "value_error", "The modifier for the first term must be set to EQUAL"
             )

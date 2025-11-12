@@ -60,9 +60,9 @@ from .responses.error import (
 )
 from .export import EXCEL, JSON, CSV
 from .mime import EXCEL_CONTENT_TYPE, JSON_CONTENT_TYPE, CSV_CONTENT_TYPE
-from .term_modifiers import EQ, AND, OR
+from .term_modifiers import EQ, AND, OR, NOT
 from .subscribe import SUBSCRIBE, UNSUBSCRIBE
-from .columns import DATAFRAME_COLUMNS, TIMESTAMP_COLUMNS
+from .platforms import PLATFORMS
 
 __all__ = [
     "FETCH_IN_PROGRESS",
@@ -122,6 +122,7 @@ __all__ = [
     "EQ",
     "AND",
     "OR",
+    "NOT",
     "EXCEL",
     "JSON",
     "CSV",
@@ -130,7 +131,6 @@ __all__ = [
     "CSV_CONTENT_TYPE",
     "SUBSCRIBE",
     "UNSUBSCRIBE",
-    "DATAFRAME_COLUMNS",
-    "TIMESTAMP_COLUMNS",
+    "PLATFORMS",
     "LIMIT_UPDATE",
 ]

@@ -1,6 +1,6 @@
 from pandas import DataFrame
 from sqlalchemy.orm import joinedload
-from requests import get
+from requests import get, HTTPError, codes
 from pyventus.events import EventEmitter, EventLinker
 from asyncio import create_task, to_thread
 from uuid import UUID
@@ -37,8 +37,7 @@ from ..utils.constants import (
     QUERY_COMPLETE,
     LIMIT_MAXED_OUT,
     LIMIT_UPDATE,
-    DATAFRAME_COLUMNS,
-    TIMESTAMP_COLUMNS,
+    PLATFORMS,
 )
 from ..log import logger
 from ..settings import API_URL
@@ -225,7 +224,9 @@ class QueryService:
                     )
                     break
 
-                timestamp_column = TIMESTAMP_COLUMNS[query.platform]
+                timestamp_column = PLATFORMS.get(query.platform, {}).get(
+                    "created_at_column", None
+                )
 
                 if timestamp_column is None:
                     raise ValueError(
@@ -282,6 +283,27 @@ class QueryService:
                         data=QuerySerializer.convert_model_to_dict(query),
                     ),
                 )
+
+            except HTTPError as err:
+                if err.response.status_code != codes.too_many_requests or query is None:
+                    logger.error(err, exc_info=True)
+                    break
+
+                query.status = FETCH_INCOMPLETE
+                limit.count = 0
+
+                limit.set_timestamps()
+                query.set_updated_at()
+                self._query_repo.update(query)
+                self._query_limit_repo.update(limit)
+                self._emitter.emit(
+                    LIMIT_MAXED_OUT,
+                    payload=Event(
+                        data=QueryLimitSerializer.convert_model_to_dict(limit),
+                        message="query limit has been maxed out until limit refresh",
+                    ),
+                )
+                break
 
             except Exception as e:
                 logger.error(e, exc_info=True)
@@ -361,7 +383,7 @@ class QueryService:
             data_frame: DataFrame = query.from_requests_to_dataframe()
             logger.debug(f"Dataframe created with {len(data_frame)} rows")
 
-            dataframe_columns = DATAFRAME_COLUMNS[query.platform]
+            dataframe_columns = PLATFORMS.get(query.platform, {}).get("columns", None)
 
             if dataframe_columns is None:
                 raise ValueError(
@@ -507,7 +529,7 @@ class QueryService:
                 QueryTerm(
                     query_id=query.id,
                     term=item.term,
-                    modifier=item.modifier,
+                    modifier=item.modifier.value,
                     position=index + 1,
                 )
             )
