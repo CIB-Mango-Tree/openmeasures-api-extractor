@@ -1,3 +1,5 @@
+from datetime import datetime
+from asyncio import sleep, create_task, run as async_run
 from starlette.applications import Starlette
 from starlette.routing import Route
 from starlette.middleware import Middleware
@@ -30,6 +32,17 @@ from src.endpoints import (
 )
 from src.settings import HOST, PORT, DATABASE_URL, DEBUG
 import src.log
+
+
+async def async_refresh(limit: QueryLimit, limit_repo: QueryRepository) -> None:
+    if (
+        limit.limit_refresh_date is not None
+        and datetime.now() > limit.limit_refresh_date
+    ):
+        limit.reset()
+        limit_repo.update(limit)
+
+    await sleep(60)
 
 
 def main() -> None:
@@ -85,6 +98,13 @@ def main() -> None:
         limit = QueryLimit()
 
         query_limit_repo.create(limit)
+
+    if (
+        limit.limit_refresh_date is not None
+        and datetime.now() > limit.limit_refresh_date
+    ):
+        limit.reset()
+        query_limit_repo.update(limit)
 
     run(app, host=HOST, port=PORT, use_colors=DEBUG, log_config=None)
 
