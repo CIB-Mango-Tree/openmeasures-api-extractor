@@ -293,6 +293,7 @@ class QueryService:
                 limit.count = 0
 
                 limit.set_timestamps()
+                limit.set_percentage()
                 query.set_updated_at()
                 self._query_repo.update(query)
                 self._query_limit_repo.update(limit)
