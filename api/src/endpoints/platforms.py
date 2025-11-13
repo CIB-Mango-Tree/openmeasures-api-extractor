@@ -7,11 +7,11 @@ from typing import cast
 
 
 class PlatformsEndpoint(HTTPEndpoint):
-    def get(self, request: Request) -> JSONResponse:
-        output: list[dict[str, str]] = []
-
-        for key, value in PLATFORMS.items():
-            readable = cast(str, value.get("readable", ""))
-            output.append({"value": key, "readable": readable})
-
-        return OK_collection_response(200, output)
+    def get(self, _: Request) -> JSONResponse:
+        return OK_collection_response(
+            200,
+            [
+                {"value": key, "readable": cast(str, value.get("readable", ""))}
+                for key, value in PLATFORMS.items()
+            ],
+        )
