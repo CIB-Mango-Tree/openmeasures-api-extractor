@@ -82,8 +82,14 @@ export function QueryDetailsFooter(): ReactElement<FC> {
       return;
     }
 
-    const response: APIResponse<QueryResponse> = await PATCHQuery(state.selectedQuery?.id as string, FETCH_CONTINUE);
-    const query: Query = mapResponseToQuery(response.data);
+    const response = await PATCHQuery(state.selectedQuery?.id as string, FETCH_CONTINUE);
+
+    if (response.code !== 200) {
+      console.error('an error occurred when updating query status', response);
+      return;
+    }
+
+    const query: Query = mapResponseToQuery((response as APIResponse<QueryResponse>).data);
 
     state.setQuery(query);
     state.setCurrentView('progress');
@@ -146,13 +152,17 @@ export function QueryDetails(): ReactElement<FC> {
           </div>
           <div className="grid grid-flow-row col-span-4">
             <h3 className="font-medium text-sm">Requests Used</h3>
-            <span className="text-sm text-muted-foreground">{selectedQuery?.queriesUsed}</span>
+            <span className="text-sm text-muted-foreground">
+              {selectedQuery?.queriesUsed}
+            </span>
           </div>
         </div>
         <div className="grid grid-flow-col grid-cols-8">
           <div className="grid grid-flow-row col-span-4">
             <h3 className="font-medium text-sm">Rows Fetched</h3>
-            <span className="text-sm text-muted-foreground">{selectedQuery?.rowsFetched}</span>
+            <span className="text-sm text-muted-foreground">
+              {selectedQuery?.rowsFetched}
+            </span>
           </div>
         </div>
       </div>
@@ -190,7 +200,7 @@ export function QueryDetails(): ReactElement<FC> {
         </div>
         <div className="grid grid-flow-row gap-y-2">
           <h3 className="font-medium text-sm">Search Terms</h3>
-          <ul className="grid grid-flow-row pl-2">
+          <ul className="grid grid-flow-row gap-y-2">
             {
               selectedQuery?.terms.map((item: QueryTerm, index: number): ReactElement<FC> => {
                 let modifierLabel: string = '-';
@@ -202,11 +212,11 @@ export function QueryDetails(): ReactElement<FC> {
 
                 return (
                   <li key={`search-term-item-${index + 1}`}
-                    className="grid grid-flow-col grid-cols-12 items-center justify-start">
-                    <span className="text-sm text-muted-foreground font-medium col-span-3">
+                    className="grid grid-flow-col auto-cols-auto items-center justify-start gap-x-2">
+                    <span className="text-sm text-muted-foreground font-medium">
                       {modifierLabel}
                     </span>
-                    <span className="text-sm text-foreground truncate col-span-9">
+                    <span className="text-sm text-foreground truncate">
                       {item.term}
                     </span>
                   </li>

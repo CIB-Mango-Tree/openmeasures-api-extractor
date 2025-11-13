@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useLimitState, useLimitAlertState } from '@state/limit';
 import { useFetchingQueryState, useQueries } from '@state/query';
 import { formatISO } from 'date-fns';
@@ -7,7 +7,7 @@ import { GETPlatforms } from '@lib/fetch/platform';
 import { mapResponseToQuery } from '@lib/map';
 import { SquarePlus } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent } from '@components/ui/card';
-import { Field, FieldLabel, FieldSet, FieldGroup } from '@components/ui/field';
+import { Field, FieldLabel, FieldSet, FieldGroup, FieldError } from '@components/ui/field';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@components/ui/select';
 import { Button } from '@components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@components/ui/tooltip';
@@ -16,17 +16,14 @@ import SearchTermInput from '@components/search-term-input';
 import { QUERY_COMPLETE } from '@constants/status';
 import { EQ } from '@constants/modifiers';
 import type { ReactElement, FC, FormEvent } from 'react';
-import type { SearchTermModifier, SearchTermValues, SearchTermModifierStateValue } from '@appTypes/term';
-import type { CreateQueryPayload, QueryTerm, Query } from '@appTypes/query';
+import type { SearchTermValues, SearchTermChangeValues } from '@appTypes/term';
+import type { CreateQueryPayload, QueryTerm, Query, QueryResponse } from '@appTypes/query';
 import type { Platform } from '@appTypes/platform';
-import type { APICollectionResponse } from '@appTypes/fetch';
-import type { RefCallback } from '@appTypes/ref';
+import type { APICollectionResponse, APIResponse, APIErrorCollectionResponse, ValidationError } from '@appTypes/fetch';
 import type { LimitState, LimitAlertState } from '@state/limit';
 import type { FetchingQueryState, QueriesState } from '@state/query';
 
-export type SearchTermStateValues = SearchTermValues & { first?: boolean; };
-export type SearchTermModifierMap = { [index: string]: SearchTermModifierStateValue; };
-export type SearchTermRefMap = { [index: string]: HTMLInputElement; };
+export type SearchTermMap = { [index: string]: SearchTermValues; };
 
 export function QueryBuilder(): ReactElement<FC> {
   const defaultTimezone = useMemo<string>((): string => new Intl.DateTimeFormat().resolvedOptions().timeZone, []);
@@ -35,45 +32,43 @@ export function QueryBuilder(): ReactElement<FC> {
   const limitState = useLimitState((state: LimitState): LimitState => state);
   const limitAlertState = useLimitAlertState((state: LimitAlertState): LimitAlertState => state);
   const [platforms, setPlatforms] = useState<Array<Platform>>([]);
+  const [startDateError, setStartDateError] = useState<ValidationError | null>(null);
+  const [endDateError, setEndDateError] = useState<ValidationError | null>(null);
   const [submitDisabled, setSubmitDisabled] = useState<boolean>(false);
   const [timezone, setTimezone] = useState<string>(defaultTimezone);
   const [platform, setPlatform] = useState<string>('');
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
-  const [modifiers, setModifiers] = useState<SearchTermModifierMap>({ default: EQ });
-  const searchTermsRef = useRef<SearchTermRefMap>({});
+  const [searchTerms, setSearchTerms] = useState<SearchTermMap>({
+    'default': { modifier: EQ, term: '' }
+  });
   const isStateEmpty: boolean = (
     (timezone.length === 0 || timezone === defaultTimezone) && platform.length === 0 && startDate == null && endDate == null &&
-    Object.keys(modifiers).length === 1 && modifiers['default'] === EQ &&
-    (Object.keys(searchTermsRef.current).length === 0 || searchTermsRef.current['default']?.value.length === 0)
+    Object.keys(searchTerms).length === 1 && searchTerms['default'].term.length === 0
   );
   const isNotSubmittable: boolean = (
-    timezone.length === 0 || platform.length === 0 || startDate == null || endDate == null || searchTermsRef.current['default'].value.length === 0 || modifiers['default'].length === 0
+    timezone.length === 0 || platform.length === 0 || startDate == null || endDate == null ||
+    !Object.values(searchTerms).every((item: SearchTermValues): boolean => item.modifier.length > 0 && item.term.length > 0)
   );
   const handleStartDateChange = (date?: Date): void => setStartDate(date || null);
   const handleEndDateChange = (date?: Date): void => setEndDate(date || null);
-  const handleTermRefAdd = (id: string): RefCallback => {
-    return (ref: HTMLInputElement | null): void => {
-      searchTermsRef.current[id] = ref as HTMLInputElement;
-    };
+  const handleSearchTermChange = (changeValues: SearchTermChangeValues): void => {
+    setSearchTerms((state: SearchTermMap): SearchTermMap => ({
+      ...state,
+      [changeValues.index]: { modifier: changeValues.modifier, term: changeValues.term }
+    }));
   };
-  const handleSelectChange = (id: string, value: SearchTermModifier): void => setModifiers((state: SearchTermModifierMap): SearchTermModifierMap => ({
-    ...state,
-    [id]: value
-  }));
   const handleSearchTermDelete = (key: string): void => {
-    const { [key]: _, ...refs } = searchTermsRef.current;
-    searchTermsRef.current = refs;
-    setModifiers((state: SearchTermModifierMap): SearchTermModifierMap => {
-      const { [key]: _, ...modifiers } = state;
+    setSearchTerms((state: SearchTermMap): SearchTermMap => {
+      const { [key]: _, ...terms } = state;
 
-      return modifiers;
+      return terms;
     });
   };
   const handleSearchTermAdd = (): void => {
-    setModifiers((state: SearchTermModifierMap): SearchTermModifierMap => ({
+    setSearchTerms((state: SearchTermMap): SearchTermMap => ({
       ...state,
-      [self.crypto.randomUUID()]: ''
+      [self.crypto.randomUUID()]: { modifier: '', term: '' }
     }));
   };
   const handleClear = (): void => {
@@ -81,11 +76,11 @@ export function QueryBuilder(): ReactElement<FC> {
     if (startDate != null) setStartDate(null);
     if (endDate != null) setEndDate(null);
     if (platform.length > 0) setPlatform('');
-    if (Object.keys(modifiers).length > 1 || searchTermsRef.current['default'].value.length > 0 || modifiers['default'].length > 0) {
-      setModifiers({ default: EQ });
-      searchTermsRef.current = { default: searchTermsRef.current['default'] };
-      searchTermsRef.current['default'].value = '';
-    }
+    if (startDateError != null) setStartDateError(null);
+    if (endDateError != null) setEndDateError(null);
+    if (Object.keys(searchTerms).length > 1 || searchTerms['default'].term.length > 0) setSearchTerms({
+      ['default']: { modifier: EQ, term: '' }
+    });
   };
   const handleSubmit = async (event: FormEvent): Promise<void> => {
     event.preventDefault();
@@ -103,13 +98,32 @@ export function QueryBuilder(): ReactElement<FC> {
       platform,
       start_date: formatISO(startDate as Date, { format: 'extended' }),
       end_date: formatISO(endDate as Date, { format: 'extended' }),
-      terms: Object.entries(modifiers).map((item: [string, SearchTermModifierStateValue]): QueryTerm => ({
-        modifier: item[1] as SearchTermModifier,
-        term: searchTermsRef.current[item[0]].value
-      })) as Array<QueryTerm>
+      terms: Object.values(searchTerms) as Array<QueryTerm>
     };
     const response = await POSTQuery(payload);
-    const query: Query = mapResponseToQuery(response.data);
+
+    if (response.code === 422) {
+      const validationErrors: Array<ValidationError> = (response as APIErrorCollectionResponse<ValidationError>).error;
+
+      for (const err of validationErrors) {
+        if (err.loc.includes('start_date') && err.type === 'date_past') {
+          setStartDateError(err);
+          continue;
+        }
+
+        if (err.loc.includes('end_date') && err.type === 'date_past') {
+          setEndDateError(err);
+          continue;
+        }
+
+        console.error('an error occurred when attempting to create query', err);
+      }
+
+      setSubmitDisabled(false);
+      return;
+    }
+
+    const query: Query = mapResponseToQuery((response as APIResponse<QueryResponse>).data);
 
     handleClear();
     fetchingQueryState.setQuery(query);
@@ -216,11 +230,21 @@ export function QueryBuilder(): ReactElement<FC> {
                 <div className="grid grid-flow-col grid-cols-8 gap-x-2">
                   <Field className="col-span-4">
                     <FieldLabel>From</FieldLabel>
-                    <DateTimePicker value={startDate} disabled={submitDisabled} onChange={handleStartDateChange} />
+                    <DateTimePicker
+                      value={startDate}
+                      disabled={submitDisabled}
+                      invalid={startDateError != null}
+                      onChange={handleStartDateChange} />
+                    <FieldError errors={startDateError != null ? [{ message: startDateError?.msg }] : undefined} />
                   </Field>
                   <Field className="col-span-4">
                     <FieldLabel>To</FieldLabel>
-                    <DateTimePicker value={endDate} disabled={submitDisabled} onChange={handleEndDateChange} />
+                    <DateTimePicker
+                      value={endDate}
+                      disabled={submitDisabled}
+                      invalid={endDateError != null}
+                      onChange={handleEndDateChange} />
+                    <FieldError errors={endDateError != null ? [{ message: endDateError?.msg }] : undefined} />
                   </Field>
                 </div>
               </FieldGroup>
@@ -243,18 +267,18 @@ export function QueryBuilder(): ReactElement<FC> {
               </FieldGroup>
               <FieldGroup>
                 <FieldLabel>Search</FieldLabel>
-                {Object.entries(modifiers).map((item: [string, SearchTermModifierStateValue]): ReactElement<FC> => {
+                {Object.entries(searchTerms).map((item: [string, SearchTermValues]): ReactElement<FC> => {
                   const index: string = item[0];
-                  const modifier = item[1] as SearchTermModifier;
+                  const entry: SearchTermValues = item[1];
 
                   return <SearchTermInput
                     key={index}
                     index={index}
                     disabled={submitDisabled}
-                    modifier={modifier}
-                    initTermRef={handleTermRefAdd}
-                    onSelectChange={handleSelectChange}
-                    onButtonCLick={handleSearchTermDelete} />
+                    modifier={entry.modifier}
+                    term={entry.term}
+                    onChange={handleSearchTermChange}
+                    onButtonCLick={handleSearchTermDelete} />;
                 })}
                 <Field orientation="horizontal">
                   <Tooltip delayDuration={1000}>

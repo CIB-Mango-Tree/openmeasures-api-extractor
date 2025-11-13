@@ -2,6 +2,11 @@ export type BaseResponse = {
   code: number;
 };
 
+export type ValidationError = {
+  type: string;
+  loc: Array<string>;
+  msg: string;
+};
 
 export type APIResponse<DataType> = BaseResponse & {
   data: DataType;

@@ -1,6 +1,7 @@
 "use client"
 import { useState, useEffect, useMemo } from 'react';
 import { parse, format, sub } from 'date-fns';
+import { cn } from '@lib/utils';
 import { ChevronDownIcon } from 'lucide-react';
 import { Button } from '@components/ui/button';
 import { Calendar } from '@components/ui/calendar';
@@ -12,14 +13,17 @@ export interface DateTimePickerProps {
   value: Date | null;
   onChange?: (value: Date) => void;
   disabled?: boolean;
+  invalid: boolean;
 }
 
-export default function DateTimePicker({ value, disabled, onChange }: DateTimePickerProps): ReactElement<FC> {
+export default function DateTimePicker({ value, disabled, onChange, invalid }: DateTimePickerProps): ReactElement<FC> {
   const [mounted, setMounted] = useState<boolean>(false);
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<Date | null>(null);
   const [time, setTime] = useState<string>('00:00:00');
   const cuttoffDate = useMemo<Date>((): Date => sub(new Date(), { months: 6 }), [open]);
+  const buttonClasses = cn('font-normal col-span-5 justify-start', { 'border-destructive!': invalid });
+  if (invalid) console.log(buttonClasses);
   const handleDateSelect = (date?: Date): void => {
     setDate(date || null);
     setOpen(false);
@@ -68,11 +72,10 @@ export default function DateTimePicker({ value, disabled, onChange }: DateTimePi
     <div className="grid grid-flow-col grid-cols-8 gap-2">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button
-            variant="outline"
+          <Button variant="outline"
             id="date-picker"
             disabled={disabled}
-            className="font-normal col-span-5 justify-start"
+            className={buttonClasses}
           >
             <span className="w-full text-left">
               {mounted && date != null ? format(date, 'MM/dd/yyyy') : 'Select date'}
@@ -99,6 +102,7 @@ export default function DateTimePicker({ value, disabled, onChange }: DateTimePi
         onChange={handleTimeChange}
         disabled={disabled}
         className="bg-background appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none col-span-3"
+        aria-invalid={invalid}
       />
     </div>
   );

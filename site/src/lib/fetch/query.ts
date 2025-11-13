@@ -1,7 +1,7 @@
 import type { QueryResponse, CreateQueryPayload } from '@appTypes/query';
-import type { APICollectionResponse, APIResponse } from '@appTypes/fetch';
+import type { APICollectionResponse, APIResponse, APIErrorCollectionResponse, ValidationError } from '@appTypes/fetch';
 
-type AsyncAPIQueryResponse = Promise<APIResponse<QueryResponse>>;
+type AsyncAPIQueryResponse = Promise<APIResponse<QueryResponse> | APIErrorCollectionResponse<ValidationError>>;
 type APIMessageResponse = APIResponse<{ message: string; }>;
 
 export async function GETQueries(): Promise<APICollectionResponse<QueryResponse>> {
@@ -24,6 +24,8 @@ export async function POSTQuery(data: CreateQueryPayload): AsyncAPIQueryResponse
     },
     body: JSON.stringify(data)
   });
+
+  if (response.status === 422) return await response.json() as APIErrorCollectionResponse<ValidationError>;
 
   return await response.json() as APIResponse<QueryResponse>;
 }
