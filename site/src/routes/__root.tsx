@@ -16,13 +16,41 @@ export const Route = createRootRoute({
         content: 'width=device-width, initial-scale=1',
       },
       {
-        title: 'TanStack Start Starter',
+        name: 'apple-mobile-web-app-title',
+        content: 'CIB Mango Tree API Extractor'
+      },
+      {
+        title: 'CIB Mangotree API extractor',
       },
     ],
     links: [
       {
         rel: 'stylesheet',
         href: 'https://rsms.me/inter/inter.css'
+      },
+      {
+        rel: 'icon',
+        type: 'image/png',
+        sizes: '96x96',
+        href: '/public/favicon-96x96.png'
+      },
+      {
+        rel: 'icon',
+        type: 'image/svg+xml',
+        href: '/public/favicon.svg'
+      },
+      {
+        rel: 'shortcut icon',
+        href: '/public/favicon.ico'
+      },
+      {
+        rel: 'apple-touch-icon',
+        sizes: '180x180',
+        href: '/public/apple-touch-icon.png'
+      },
+      {
+        rel: 'manifest',
+        href: '/public/manifest.json'
       },
       {
         rel: 'stylesheet',

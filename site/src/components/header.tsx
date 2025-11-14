@@ -9,7 +9,7 @@ export default function Header(): ReactElement<FC> {
       <div className="grid grid-flow-col items-center">
         <Link to="/">
           <Image
-            src="https://cibmangotree.org/assets/images/mango-text.PNG"
+            src="/public/mango-text.PNG"
             width={64}
             height={64}
           />
