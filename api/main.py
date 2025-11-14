@@ -1,15 +1,21 @@
+from collections.abc import AsyncGenerator
 from datetime import datetime
-from asyncio import sleep, create_task, run as async_run
+from asyncio import Task, sleep, create_task
+from contextlib import asynccontextmanager
+from typing import Any
 from starlette.applications import Starlette
 from starlette.routing import Route
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 from uvicorn import run
-from pyventus.events import AsyncIOEventEmitter
+from pyventus.events import AsyncIOEventEmitter, EventEmitter
 from lagom import Container
 from lagom.integrations.starlette import StarletteIntegration
 from src.db.connection import init_DB
 from src.db.models import QueryLimit
+from src.serializers import QueryLimitSerializer
+from src.event import Event
+from src.utils.constants import LIMIT_UPDATE
 from src.db.repositories import (
     QueryRepository,
     QueryTermRepository,
@@ -31,18 +37,33 @@ from src.endpoints import (
     PlatformsEndpoint,
 )
 from src.settings import HOST, PORT, DATABASE_URL, DEBUG
-import src.log
+from src.log import logger
 
 
-async def async_refresh(limit: QueryLimit, limit_repo: QueryRepository) -> None:
-    if (
-        limit.limit_refresh_date is not None
-        and datetime.now() > limit.limit_refresh_date
-    ):
-        limit.reset()
-        limit_repo.update(limit)
+async def refresh_limit_task(
+    limit_repo: QueryLimitRepository, emitter: EventEmitter
+) -> None:
+    while True:
+        try:
+            limit = limit_repo.find()
 
-    await sleep(60)
+            if (limit is None or limit.limit_refresh_date is None) or (
+                datetime.now() <= limit.limit_refresh_date
+            ):
+                await sleep(60)
+                continue
+
+            limit.reset()
+            limit_repo.update(limit)
+            emitter.emit(
+                LIMIT_UPDATE,
+                payload=Event(data=QueryLimitSerializer.convert_model_to_dict(limit)),
+            )
+            await sleep(60)
+
+        except Exception as e:
+            logger.error("Error in refresh_limit_task: %s", e, exc_info=True)
+            await sleep(60)
 
 
 def main() -> None:
@@ -80,9 +101,39 @@ def main() -> None:
         websocket_router.ws_route("/api/ws/updates", endpoint=UpdateStreamEndpoint),
         Route("/api/platforms", endpoint=PlatformsEndpoint),
     ]
+
+    @asynccontextmanager
+    async def lifespan(_: Starlette) -> AsyncGenerator[Any, Any]:
+        limit: QueryLimit | None = query_limit_repo.find()
+
+        if limit is None:
+            limit = QueryLimit()
+            query_limit_repo.create(limit)
+
+        if (
+            limit.limit_refresh_date is not None
+            and datetime.now() > limit.limit_refresh_date
+        ):
+            limit.reset()
+            query_limit_repo.update(limit)
+
+        task: Task[None] = create_task(refresh_limit_task(query_limit_repo, emitter))
+
+        try:
+            yield
+
+        finally:
+            task.cancel()
+
+            try:
+                await task
+            except Exception:
+                pass
+
     app = Starlette(
         debug=DEBUG,
         routes=routes,
+        lifespan=lifespan,
         middleware=[
             Middleware(
                 CORSMiddleware,
@@ -92,20 +143,6 @@ def main() -> None:
             )
         ],
     )
-    limit = query_limit_repo.find()
-
-    if limit is None:
-        limit = QueryLimit()
-
-        query_limit_repo.create(limit)
-
-    if (
-        limit.limit_refresh_date is not None
-        and datetime.now() > limit.limit_refresh_date
-    ):
-        limit.reset()
-        query_limit_repo.update(limit)
-
     run(app, host=HOST, port=PORT, use_colors=DEBUG, log_config=None)
 
 
