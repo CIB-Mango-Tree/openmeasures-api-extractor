@@ -110,13 +110,6 @@ def main() -> None:
             limit = QueryLimit()
             query_limit_repo.create(limit)
 
-        if (
-            limit.limit_refresh_date is not None
-            and datetime.now() > limit.limit_refresh_date
-        ):
-            limit.reset()
-            query_limit_repo.update(limit)
-
         task: Task[None] = create_task(refresh_limit_task(query_limit_repo, emitter))
 
         try:
