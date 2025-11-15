@@ -155,6 +155,14 @@ class QueryService:
                             message="query limit has been maxed out until limit refresh",
                         ),
                     )
+                    self._emitter.emit(
+                        FETCH_INCOMPLETE,
+                        payload=Event(
+                            data=QuerySerializer.convert_model_to_dict(query),
+                            message="data fetch is imcomplete. query has been paused due to limit being exhausted",
+                        ),
+                    )
+
                     break
 
                 response = get(API_URL, params=params)
@@ -313,6 +321,13 @@ class QueryService:
                     payload=Event(
                         data=QueryLimitSerializer.convert_model_to_dict(limit),
                         message="query limit has been maxed out until limit refresh",
+                    ),
+                )
+                self._emitter.emit(
+                    FETCH_INCOMPLETE,
+                    payload=Event(
+                        data=QuerySerializer.convert_model_to_dict(query),
+                        message="data fetch is imcomplete. query has been paused due to limit being exhausted",
                     ),
                 )
                 break
