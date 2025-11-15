@@ -1,6 +1,7 @@
 import { useLimitState, useLimitAlertState } from '@state/limit';
 import { useFetchingQueryState, useQueries } from '@state/query';
 import { PATCHQuery } from '@lib/fetch/query';
+import { cn } from '@lib/utils';
 import { mapResponseToQuery } from '@lib/map';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@components/ui/alert';
@@ -24,9 +25,12 @@ import type { FetchingQueryState, QueriesState } from '@state/query';
 
 export function LimitAlert(): ReactElement<FC> {
   const count = useLimitState((state: LimitState): number => state.count);
+  const alertClasses: string = cn('col-span-8', {
+    'border-destructive': count === 0
+  });
 
   return (
-    <Alert variant={count === 0 ? 'destructive' : 'default'} className="col-span-8">
+    <Alert variant={count === 0 ? 'destructive' : 'default'} className={alertClasses}>
       <AlertCircleIcon />
       <AlertTitle>Daily query limit</AlertTitle>
       <AlertDescription>
@@ -69,7 +73,7 @@ export function LimitAlertContinueDialog(): ReactElement<FC> {
     fetchingQueryState.toggleShow();
   };
   const handleContinue = async (): Promise<void> => {
-    const response: APIResponse<QueryResponse> = await PATCHQuery(fetchingQueryState.query?.id as string, FETCH_CONTINUE);
+    const response = await PATCHQuery(fetchingQueryState.query?.id as string, FETCH_CONTINUE) as APIResponse<QueryResponse>;
     const query: Query = mapResponseToQuery(response.data);
 
     fetchingQueryState.setQuery(query);
@@ -107,7 +111,7 @@ export function LimitAlertMaxedOutDialog(): ReactElement<FC> {
   return (
     <AlertDialogContent>
       <AlertDialogHeader>
-        <AlertDialogTitle>
+        <AlertDialogTitle className="inline-flex gap-x-2">
           <TriangleAlert />
           You do not have enough requests left today
         </AlertDialogTitle>
