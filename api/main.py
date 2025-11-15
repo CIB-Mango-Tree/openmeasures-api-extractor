@@ -1,5 +1,4 @@
 from collections.abc import AsyncGenerator
-from datetime import datetime
 from asyncio import Task, sleep, create_task, to_thread
 from contextlib import asynccontextmanager
 from typing import Any
@@ -12,10 +11,6 @@ from pyventus.events import AsyncIOEventEmitter, EventEmitter
 from lagom import Container
 from lagom.integrations.starlette import StarletteIntegration
 from src.db.connection import init_DB
-from src.db.models import QueryLimit
-from src.serializers import QueryLimitSerializer
-from src.event import Event
-from src.utils.constants import LIMIT_UPDATE
 from src.db.repositories import (
     QueryRepository,
     QueryTermRepository,
