@@ -18,56 +18,85 @@ class QueryRepository(BaseRepository[Query]):
     ) -> list[Query]:
         session: Session = self._session_factory()
 
-        return list(
-            session.scalars(
-                select(Query)
-                .options(*query_options)
-                .execution_options(populate_existing=True)
-            ).unique()
-        )
+        try:
+            return list(
+                session.scalars(
+                    select(Query)
+                    .options(*query_options)
+                    .execution_options(populate_existing=True)
+                ).unique()
+            )
+
+        finally:
+            session.close()
+            self._session_factory.remove()
 
     def find_by_id(
         self, id: UUID, query_options: list[Any] = [joinedload(Query.terms)]
     ) -> Query | None:
         session: Session = self._session_factory()
 
-        return session.scalars(
-            select(Query)
-            .options(*query_options)
-            .where(Query.id == id)
-            .execution_options(populate_existing=True)
-        ).first()
+        try:
+            return session.scalars(
+                select(Query)
+                .options(*query_options)
+                .where(Query.id == id)
+                .execution_options(populate_existing=True)
+            ).first()
+
+        finally:
+            session.close()
+            self._session_factory.remove()
 
     def find_by_status(
         self, status: str, query_options: list[Any] = [joinedload(Query.terms)]
     ) -> list[Query]:
         session: Session = self._session_factory()
 
-        return list(
-            session.scalars(
-                select(Query)
-                .options(*query_options)
-                .where(Query.status == status)
-                .execution_options(populate_existing=True)
-            ).unique()
-        )
+        try:
+            return list(
+                session.scalars(
+                    select(Query)
+                    .options(*query_options)
+                    .where(Query.status == status)
+                    .execution_options(populate_existing=True)
+                ).unique()
+            )
+
+        finally:
+            session.close()
+            self._session_factory.remove()
 
     def find_by_platform(
         self, platform: str, query_options: list[Any] = [joinedload(Query.terms)]
     ) -> list[Query]:
         session: Session = self._session_factory()
 
-        return list(
-            session.scalars(
-                select(Query)
-                .options(*query_options)
-                .where(Query.platform == platform)
-                .execution_options(populate_existing=True)
-            ).unique()
-        )
+        try:
+            return list(
+                session.scalars(
+                    select(Query)
+                    .options(*query_options)
+                    .where(Query.platform == platform)
+                    .execution_options(populate_existing=True)
+                ).unique()
+            )
+
+        finally:
+            session.close()
+            self._session_factory.remove()
 
     def batch_delete(self, ids: list[UUID]) -> None:
         session: Session = self._session_factory()
 
-        session.execute(delete(Query).where(Query.id.in_(ids)))
-        session.commit()
+        try:
+            session.execute(delete(Query).where(Query.id.in_(ids)))
+            session.commit()
+
+        except Exception:
+            session.rollback()
+            raise
+
+        finally:
+            session.close()
+            self._session_factory.remove()

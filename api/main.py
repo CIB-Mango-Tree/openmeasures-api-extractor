@@ -1,6 +1,6 @@
 from collections.abc import AsyncGenerator
 from datetime import datetime
-from asyncio import Task, sleep, create_task
+from asyncio import Task, sleep, create_task, to_thread
 from contextlib import asynccontextmanager
 from typing import Any
 from starlette.applications import Starlette
@@ -41,24 +41,11 @@ from src.log import logger
 
 
 async def refresh_limit_task(
-    limit_repo: QueryLimitRepository, emitter: EventEmitter
+    limit_service: QueryLimitService, emitter: EventEmitter
 ) -> None:
     while True:
         try:
-            limit = limit_repo.find()
-
-            if (limit is None or limit.limit_refresh_date is None) or (
-                datetime.now() <= limit.limit_refresh_date
-            ):
-                await sleep(60)
-                continue
-
-            limit.reset()
-            limit_repo.update(limit)
-            emitter.emit(
-                LIMIT_UPDATE,
-                payload=Event(data=QueryLimitSerializer.convert_model_to_dict(limit)),
-            )
+            await to_thread(limit_service.maintain_and_check)
             await sleep(60)
 
         except Exception as e:
@@ -76,7 +63,7 @@ def main() -> None:
     query_service = QueryService(
         query_repo, query_term_repo, query_request_repo, query_limit_repo, emitter
     )
-    query_limit_service = QueryLimitService(query_limit_repo)
+    query_limit_service = QueryLimitService(query_limit_repo, emitter)
     query_export_service = QueryExportService(query_repo)
     websocket_service = WebSocketService(query_repo)
     query_container = Container()
@@ -104,13 +91,7 @@ def main() -> None:
 
     @asynccontextmanager
     async def lifespan(_: Starlette) -> AsyncGenerator[Any, Any]:
-        limit: QueryLimit | None = query_limit_repo.find()
-
-        if limit is None:
-            limit = QueryLimit()
-            query_limit_repo.create(limit)
-
-        task: Task[None] = create_task(refresh_limit_task(query_limit_repo, emitter))
+        task: Task[None] = create_task(refresh_limit_task(query_limit_service, emitter))
 
         try:
             yield

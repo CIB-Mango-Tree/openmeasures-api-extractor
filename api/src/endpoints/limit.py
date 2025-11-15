@@ -10,7 +10,7 @@ from ..utils.constants import OK
 
 class QueryLimitEndpoint(HTTPEndpoint):
     async def get(
-        self, request: Request, limit_service: QueryLimitService = injectable
+        self, _: Request, limit_service: QueryLimitService = injectable
     ) -> JSONResponse:
         limit = limit_service.get()
 
@@ -20,8 +20,8 @@ class QueryLimitEndpoint(HTTPEndpoint):
                 {
                     "count": 39,
                     "percentage": 0.0,
-                    "previous_request_date": "",
-                    "limit_refresh_date": "",
+                    "previous_request_date": None,
+                    "limit_refresh_date": None,
                 },
             )
 

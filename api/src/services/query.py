@@ -70,7 +70,9 @@ class QueryService:
             query.status = FETCH_IN_PROGRESS
 
             query.set_updated_at()
-            self._query_repo.update(query)
+
+            query = self._query_repo.update(query)
+
             logger.debug(
                 "continued query has been updated - id: %s status: %s",
                 query.id,
@@ -129,7 +131,9 @@ class QueryService:
                     datetime.now() > limit.limit_refresh_date
                 ):
                     limit.reset()
-                    self._query_limit_repo.update(limit)
+
+                    limit = self._query_limit_repo.update(limit)
+
                     logger.debug("limit reset has been triggered.")
                     self._emitter.emit(
                         LIMIT_UPDATE,
@@ -142,7 +146,8 @@ class QueryService:
                     query.status = FETCH_INCOMPLETE
 
                     query.set_updated_at()
-                    self._query_repo.update(query)
+
+                    self._query_repo.update(query, True)
                     self._emitter.emit(
                         LIMIT_MAXED_OUT,
                         payload=Event(
@@ -164,7 +169,9 @@ class QueryService:
                     query.status = QUERY_COMPLETE
 
                     query.set_updated_at()
-                    self._query_repo.update(query)
+
+                    query = self._query_repo.update(query, True)
+
                     self._emitter.emit(
                         QUERY_COMPLETE,
                         payload=Event(
@@ -183,7 +190,9 @@ class QueryService:
                 limit.set_timestamps()
                 limit.set_percentage()
                 self._query_request_repo.create(request)
-                self._query_limit_repo.update(limit)
+
+                limit = self._query_limit_repo.update(limit)
+
                 logger.debug(
                     "limit details after update - count: %d last_update: %s",
                     limit.count,
@@ -198,13 +207,6 @@ class QueryService:
                     ),
                 )
 
-                query = self._query_repo.find_by_id(
-                    query.id, [joinedload(Query.requests)]
-                )
-
-                if query is None:
-                    break
-
                 query.rows_fetched += hit_length
 
                 query.increment_queries_used()
@@ -214,7 +216,9 @@ class QueryService:
                     query.status = CLEAN_IN_PROGRESS
 
                     query.set_updated_at()
-                    self._query_repo.update(query)
+
+                    query = self._query_repo.update(query, True)
+
                     self._emitter.emit(
                         CLEAN_IN_PROGRESS,
                         payload=Event(
@@ -236,12 +240,13 @@ class QueryService:
                 last_created_at = hits[-1]["_source"].get(timestamp_column)
 
                 if not last_created_at:
-                    print("No 'created_at' found in the last hit.")
                     query.percentage = 1.0
                     query.status = CLEAN_IN_PROGRESS
 
                     query.set_updated_at()
-                    self._query_repo.update(query)
+
+                    query = self._query_repo.update(query, True)
+
                     self._emitter.emit(
                         CLEAN_IN_PROGRESS,
                         payload=Event(
@@ -263,7 +268,9 @@ class QueryService:
                     query.status = FETCH_INCOMPLETE
 
                     query.set_updated_at()
-                    self._query_repo.update(query)
+
+                    query = self._query_repo.update(query, True)
+
                     self._emitter.emit(
                         FETCH_INCOMPLETE,
                         payload=Event(
@@ -276,7 +283,9 @@ class QueryService:
                 params["since"] = last_created_at
 
                 query.set_updated_at()
-                self._query_repo.update(query)
+
+                query = self._query_repo.update(query, True)
+
                 self._emitter.emit(
                     FETCH_UPDATE_PROGRESS,
                     payload=Event(
@@ -295,8 +304,10 @@ class QueryService:
                 limit.set_timestamps()
                 limit.set_percentage()
                 query.set_updated_at()
-                self._query_repo.update(query)
-                self._query_limit_repo.update(limit)
+                self._query_repo.update(query, True)
+
+                limit = self._query_limit_repo.update(limit)
+
                 self._emitter.emit(
                     LIMIT_MAXED_OUT,
                     payload=Event(
@@ -310,12 +321,16 @@ class QueryService:
                 logger.error(e, exc_info=True)
                 break
 
+        query = self._query_repo.find_by_id(
+            query.id, [joinedload(Query.terms), joinedload(Query.requests)]
+        )
+
         return query
 
     def _clean_data(self, query: Query) -> Query | None:
         if query.status == CLEAN_CONTINUE:
             query.status = CLEAN_IN_PROGRESS
-            self._query_repo.update(query)
+            query = self._query_repo.update(query, True)
 
         if query.status == CLEAN_INCOMPLETE:
             return None
@@ -346,15 +361,17 @@ class QueryService:
                 request.set_updated_at()
                 self._query_request_repo.update(request)
 
-            query = self._query_repo.find_by_id(query.id, [joinedload(Query.requests)])
+            query.status = PARSE_IN_PROGRESS
+            query.set_updated_at()
+
+            query = self._query_repo.update(query, True)
+            query = self._query_repo.find_by_id(
+                query.id, [joinedload(Query.requests), joinedload(Query.terms)]
+            )
 
             if query is None:
                 return None
 
-            query.status = PARSE_IN_PROGRESS
-
-            query.set_updated_at()
-            self._query_repo.update(query)
             self._emitter.emit(
                 PARSE_IN_PROGRESS,
                 payload=Event(
@@ -374,7 +391,7 @@ class QueryService:
 
         if query.status == PARSE_CONTINUE:
             query.status = PARSE_IN_PROGRESS
-            self._query_repo.update(query)
+            query = self._query_repo.update(query, True)
 
         if query.status == PARSE_INCOMPLETE:
             return None
@@ -400,7 +417,9 @@ class QueryService:
             query.from_dataframe_to_processed_data(data_frame)
             query.status = QUERY_COMPLETE
             query.set_updated_at()
-            self._query_repo.update(query)
+
+            query = self._query_repo.update(query, True)
+
             self._emitter.emit(
                 QUERY_COMPLETE,
                 payload=Event(
@@ -519,7 +538,7 @@ class QueryService:
         if data.timezone is not None:
             query.timezone = data.timezone
 
-        self._query_repo.create(query)
+        query = self._query_repo.create(query)
 
         terms: list[QueryTerm] = []
 
@@ -536,6 +555,14 @@ class QueryService:
             )
 
         self._query_term_repo.batch_create(terms)
+
+        query = self._query_repo.find_by_id(
+            query.id, [joinedload(Query.terms), joinedload(Query.requests)]
+        )
+
+        if query is None:
+            raise ValueError("query service shit itself during refresh...")
+
         self.process_query(query.id)
 
         return query
@@ -558,7 +585,9 @@ class QueryService:
             query.status = PARSE_CONTINUE
 
         self._emitter.emit(f"CANCEL:{str(query.id)}")
-        self._query_repo.update(query)
+
+        query = self._query_repo.update(query)
+
         self.process_query(query.id)
 
         return query

@@ -1,52 +1,43 @@
+from datetime import datetime
+from pyventus.events import EventEmitter
 from ..db.models import QueryLimit
 from ..db.repositories import QueryLimitRepository
-from ..validator import CreateLimitValidator, UpdateLimitValidator
+from ..serializers import QueryLimitSerializer
+from ..event import Event
+from ..utils.constants import LIMIT_UPDATE
 
 
 class QueryLimitService:
     _query_limit_repo: QueryLimitRepository
+    _emitter: EventEmitter
 
-    def __init__(self, query_limit_repo: QueryLimitRepository) -> None:
+    def __init__(
+        self, query_limit_repo: QueryLimitRepository, emitter: EventEmitter
+    ) -> None:
         self._query_limit_repo = query_limit_repo
+        self._emitter = emitter
 
-    def get(self) -> QueryLimit:
+    def get(self) -> QueryLimit | None:
         return self._query_limit_repo.find()
 
-    def create(self, data: CreateLimitValidator) -> QueryLimit:
-        limit = QueryLimit(
-            count=data.count,
-            previous_request_date=data.previous_request_date,
-            limit_refresh_date=data.limit_refresh_date,
-        )
-
-        self._query_limit_repo.create(limit)
-
-        return limit
-
-    def update(self, data: UpdateLimitValidator) -> QueryLimit | None:
-        limit = self._query_limit_repo.find()
+    def maintain_and_check(self) -> None:
+        limit: QueryLimit | None = self._query_limit_repo.find()
 
         if limit is None:
-            return None
-
-        if data.count is not None and limit.count != data.count:
-            limit.count = data.count
+            limit = self._query_limit_repo.create(QueryLimit())
 
         if (
-            data.previous_request_date is not None
-            and limit.previous_request_date != data.previous_request_date
+            limit.limit_refresh_date is None
+            or datetime.now() < limit.limit_refresh_date
         ):
-            limit.previous_request_date = data.previous_request_date
+            return
 
-        if (
-            data.limit_refresh_date is not None
-            and limit.limit_refresh_date != data.limit_refresh_date
-        ):
-            limit.limit_refresh_date = data.limit_refresh_date
-
-        self._query_limit_repo.update(limit)
-
-        return limit
+        limit.reset()
+        limit = self._query_limit_repo.update(limit)
+        self._emitter.emit(
+            LIMIT_UPDATE,
+            payload=Event(data=QueryLimitSerializer.convert_model_to_dict(limit)),
+        )
 
     def delete(self) -> None:
         self._query_limit_repo.delete()

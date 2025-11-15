@@ -33,7 +33,7 @@ class QueryExportService:
 
         if data.format.value == EXCEL:
             filename += ".xlsx"
-            data_frame.to_excel(buffer)
+            data_frame.to_excel(buffer, engine="xlsxwriter")
 
         if data.format.value == JSON:
             filename += ".json"

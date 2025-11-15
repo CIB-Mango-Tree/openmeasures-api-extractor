@@ -13,37 +13,70 @@ class QueryLimitRepository:
     def find(self) -> QueryLimit | None:
         session: Session = self._session_factory()
 
-        return session.scalars(
-            select(QueryLimit).execution_options(populate_existing=True)
-        ).first()
+        try:
+            return session.scalars(
+                select(QueryLimit).execution_options(populate_existing=True)
+            ).first()
 
-    def create(self, model: QueryLimit) -> None:
+        finally:
+            session.close()
+            self._session_factory.remove()
+
+    def create(self, model: QueryLimit) -> QueryLimit:
         limit = self.find()
 
         if limit is not None:
-            self.update(model)
-            return
+            return self.update(model)
 
         session: Session = self._session_factory()
 
-        session.add(model)
-        session.commit()
+        try:
+            session.add(model)
+            session.commit()
+            session.refresh(model)
+            session.expunge(model)
 
-    def update(self, model: QueryLimit) -> None:
+            return model
+
+        except Exception:
+            session.rollback()
+            raise
+
+        finally:
+            session.close()
+            self._session_factory.remove()
+
+    def update(self, model: QueryLimit) -> QueryLimit:
         session: Session = self._session_factory()
-        data: dict[str, Any] = {}
 
-        for column in model.__table__.columns:
-            name = column.name
+        try:
+            model = session.merge(model)
 
-            if hasattr(model, name):
-                data[name] = getattr(model, name)
+            session.commit()
+            session.refresh(model)
+            session.expunge(model)
 
-        session.execute(sql_update(QueryLimit).values(data))
-        session.commit()
+            return model
+
+        except Exception:
+            session.rollback()
+            raise
+
+        finally:
+            session.close()
+            self._session_factory.remove()
 
     def delete(self) -> None:
         session: Session = self._session_factory()
 
-        session.execute(sql_delete(QueryLimit))
-        session.commit()
+        try:
+            session.execute(sql_delete(QueryLimit))
+            session.commit()
+
+        except Exception:
+            session.rollback()
+            raise
+
+        finally:
+            session.close()
+            self._session_factory.remove()
