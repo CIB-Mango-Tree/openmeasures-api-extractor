@@ -97,8 +97,8 @@ function App(): ReactElement<FC> {
         limitAlertState.toggleShow();
       }
       if (
-        selectedQueryState.selectedQuery?.id === query.id &&
-        limitState.count > 0
+        (selectedQueryState.selectedQuery?.id === query.id) &&
+        (data.message === 'data fetch is imcomplete. query has been paused due to limit being exhausted')
       ) selectedQueryState.setQuery(query);
 
       queriesState.update(query);
