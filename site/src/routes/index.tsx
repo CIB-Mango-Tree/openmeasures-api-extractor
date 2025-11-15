@@ -86,6 +86,7 @@ function App(): ReactElement<FC> {
       const fetchingState = useFetchingQueryState.getState();
       const queriesState = useQueries.getState();
       const selectedQueryState = useSelectedQuery.getState();
+      const limitState = useLimitState.getState();
 
       if (
         (fetchingState.query?.id === query.id) &&
@@ -95,7 +96,10 @@ function App(): ReactElement<FC> {
         limitAlertState.setType('continue');
         limitAlertState.toggleShow();
       }
-      if (selectedQueryState.selectedQuery?.id === query.id) selectedQueryState.setQuery(query);
+      if (
+        selectedQueryState.selectedQuery?.id === query.id &&
+        limitState.count > 0
+      ) selectedQueryState.setQuery(query);
 
       queriesState.update(query);
     });
