@@ -113,7 +113,7 @@ function App(): ReactElement<FC> {
       }
 
       queriesState.update(query);
-      toast.success('Extraction Complete', { description: `Data extraction for ${query.status} is complete!` });
+      toast.success('Extraction Complete', { description: `Data extraction for ${query.platform} is complete!` });
     });
     connectionRef.current.on(LIMIT_UPDATE, (data: EventMessageData): void => {
       limitState.set(mapResponseToLimit(data as LimitResponse));

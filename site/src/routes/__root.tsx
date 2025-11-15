@@ -20,7 +20,7 @@ export const Route = createRootRoute({
         content: 'CIB Mango Tree API Extractor'
       },
       {
-        title: 'CIB Mangotree API extractor',
+        title: 'CIB Mango Tree API Extractor',
       },
     ],
     links: [
