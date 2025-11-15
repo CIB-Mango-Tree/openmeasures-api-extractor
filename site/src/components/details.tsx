@@ -95,9 +95,12 @@ export function QueryDetailsFooter(): ReactElement<FC> {
     state.setCurrentView('progress');
   };
   const isDisabled: boolean = (
-    state.selectedQuery?.status !== (FETCH_INCOMPLETE as string) &&
-    state.selectedQuery?.status !== (CLEAN_INCOMPLETE as string) &&
-    state.selectedQuery?.status !== (PARSE_INCOMPLETE as string)
+    (
+      state.selectedQuery?.status !== (FETCH_INCOMPLETE as string) &&
+      state.selectedQuery?.status !== (CLEAN_INCOMPLETE as string) &&
+      state.selectedQuery?.status !== (PARSE_INCOMPLETE as string)
+    ) ||
+    limitState.count === 0
   );
 
   return (

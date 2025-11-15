@@ -86,22 +86,14 @@ function App(): ReactElement<FC> {
       const fetchingState = useFetchingQueryState.getState();
       const queriesState = useQueries.getState();
       const selectedQueryState = useSelectedQuery.getState();
-      const matchOnFetchingState: boolean = fetchingState.query?.id === query.id;
 
       if (
-        matchOnFetchingState &&
-        data.message === 'data fetch is imcomplete. user must approve finishing the query to continue'
+        (fetchingState.query?.id === query.id) &&
+        (data.message === 'data fetch is imcomplete. user must approve finishing the query to continue')
       ) {
         fetchingState.setQuery(query);
         limitAlertState.setType('continue');
         limitAlertState.toggleShow();
-      }
-      if (
-        matchOnFetchingState &&
-        data.message === 'data fetch is imcomplete. query has been paused due to limit being exhausted'
-      ) {
-        if (fetchingState.showProgress) fetchingState.toggleShow();
-        fetchingState.removeQuery();
       }
       if (selectedQueryState.selectedQuery?.id === query.id) selectedQueryState.setQuery(query);
 
@@ -137,7 +129,7 @@ function App(): ReactElement<FC> {
       limitState.set(mapResponseToLimit(data.limit as LimitResponse));
       alertState.setType('maxed_out');
       if (!alertState.show) alertState.toggleShow();
-      if (fetchingState.showProgress) {
+      if (fetchingState.query != null) {
         fetchingState.toggleShow();
         fetchingState.removeQuery();
       }
