@@ -123,7 +123,7 @@ function App(): ReactElement<FC> {
       const fetchingState: FetchingQueryState = useFetchingQueryState.getState();
       const selectedState: SelectedQueryState = useSelectedQuery.getState();
 
-      limitState.set(mapResponseToLimit(data as LimitResponse));
+      limitState.set(mapResponseToLimit(data.limit as LimitResponse));
       alertState.setType('maxed_out');
       if (!alertState.show) alertState.toggleShow();
       if (fetchingState.showProgress) {
