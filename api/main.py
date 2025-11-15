@@ -7,7 +7,7 @@ from starlette.routing import Route
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 from uvicorn import run
-from pyventus.events import AsyncIOEventEmitter, EventEmitter
+from pyventus.events import AsyncIOEventEmitter
 from lagom import Container
 from lagom.integrations.starlette import StarletteIntegration
 from src.db.connection import init_DB
@@ -35,9 +35,7 @@ from src.settings import HOST, PORT, DATABASE_URL, DEBUG
 from src.log import logger
 
 
-async def refresh_limit_task(
-    limit_service: QueryLimitService, emitter: EventEmitter
-) -> None:
+async def refresh_limit_task(limit_service: QueryLimitService) -> None:
     while True:
         try:
             await to_thread(limit_service.maintain_and_check)
@@ -86,7 +84,7 @@ def main() -> None:
 
     @asynccontextmanager
     async def lifespan(_: Starlette) -> AsyncGenerator[Any, Any]:
-        task: Task[None] = create_task(refresh_limit_task(query_limit_service, emitter))
+        task: Task[None] = create_task(refresh_limit_task(query_limit_service))
 
         try:
             yield
