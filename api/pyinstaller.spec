@@ -1,5 +1,17 @@
 # -*- mode: python ; coding: utf-8 -*-
+
 from PyInstaller.utils.hooks import collect_all
+import sys
+import lagom.container
+mypyc_modules = []
+
+for module_name in sys.modules.keys():
+  if '__mypyc' not in module_name:
+    continue
+  
+  mypyc_modules.append(module_name)
+  print(f"Found __mypyc module: {module_name}")
+
 
 datas = [('src', 'src')]
 binaries = []
@@ -41,6 +53,9 @@ hiddenimports = [
   'h11',
   'idna',
   'lagom',
+  'lagom.container',
+  'lagom.context_based',
+  'lagom.updaters',
   'lagom.integrations',
   'lagom.integrations.starlette',
   'pandas',
@@ -54,22 +69,28 @@ hiddenimports = [
   'tzlocal',
   'websockets',
   'xlsxwriter',
-  '0b4db182acad7f2fbd05__mypyc'
 ]
+
+
 tmp_ret = collect_all('lagom')
-datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+datas += tmp_ret[0]
+binaries += tmp_ret[1]
+hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('starlette')
-datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+datas += tmp_ret[0]
+binaries += tmp_ret[1]
+hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('uvicorn')
-datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
-
-
+datas += tmp_ret[0]
+binaries += tmp_ret[1]
+hiddenimports += tmp_ret[2]
+hiddenimports.extend(mypyc_modules)
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=binaries,
     datas=datas,
-    hiddenimports=hiddenimports,
+    hiddenimports=list(set(hiddenimports)),
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -77,6 +98,7 @@ a = Analysis(
     noarchive=False,
     optimize=0,
 )
+
 pyz = PYZ(a.pure)
 
 exe = EXE(
@@ -86,7 +108,7 @@ exe = EXE(
     a.datas,
     [],
     name='mango-tree-api-extractor',
-    debug=True,
+    debug=False,  # Set to False for production
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
