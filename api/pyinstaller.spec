@@ -69,6 +69,7 @@ hiddenimports = [
   'tzlocal',
   'websockets',
   'xlsxwriter',
+  'platformdirs'
 ]
 
 
@@ -108,7 +109,7 @@ exe = EXE(
     a.datas,
     [],
     name='mango-tree-api-extractor',
-    debug=False,  # Set to False for production
+    debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
