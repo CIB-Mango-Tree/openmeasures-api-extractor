@@ -8,7 +8,9 @@ from logging import (
     ERROR,
 )
 from sys import stdout
+from os import path
 from .settings import DEBUG as APP_DEBUG
+from .utils.user_dir import get_app_data_dir
 
 root_logger = getLogger()
 sqlalchemy_logger = getLogger("sqlalchemy.engine")
@@ -24,7 +26,9 @@ sqlalchemy_logger.setLevel(DEBUG if APP_DEBUG else ERROR)
 sqlalchemy_pool_logger.setLevel(DEBUG if APP_DEBUG else ERROR)
 
 if not APP_DEBUG:
-    file_handler = FileHandler("app.log", mode="w", encoding="utf-8")
+    file_handler = FileHandler(
+        path.join(get_app_data_dir(), "app.log"), mode="w", encoding="utf-8"
+    )
 
     file_handler.setLevel(ERROR)
     file_handler.setFormatter(formatter)

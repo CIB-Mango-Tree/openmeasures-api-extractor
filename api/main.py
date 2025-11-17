@@ -33,6 +33,7 @@ from src.endpoints import (
 )
 from src.settings import HOST, PORT, DATABASE_URL, DEBUG
 from src.log import logger
+from src.utils.user_dir import initialize_user_dir_if_not_exists, get_app_data_dir
 
 
 async def refresh_limit_task(limit_service: QueryLimitService) -> None:
@@ -47,6 +48,8 @@ async def refresh_limit_task(limit_service: QueryLimitService) -> None:
 
 
 def main() -> None:
+    initialize_user_dir_if_not_exists(get_app_data_dir())
+
     db = init_DB(DATABASE_URL)
     emitter = AsyncIOEventEmitter()
     query_repo = QueryRepository(db)
