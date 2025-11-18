@@ -2,7 +2,7 @@ from os import path, mkdir
 from platformdirs import user_data_dir
 
 
-def get_app_data_dir(name: str = "mango-tree-api-extractor") -> str:
+def get_app_data_dir(name: str = "mango-tree-api-extractor-backend") -> str:
     return path.join(user_data_dir(), name)
 
 

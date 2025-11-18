@@ -108,7 +108,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='mango-tree-api-extractor',
+    name='mango-tree-api-extractor-backend',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
