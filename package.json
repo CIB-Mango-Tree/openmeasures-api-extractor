@@ -1,0 +1,34 @@
+{
+  "name": "mango-tree-api-extractor",
+  "version": "1.0.0",
+  "description": "",
+  "bin": "./build/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "compile": "pkg ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.7.0",
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@yao-pkg/pkg": "^6.10.1",
+    "typescript": "^5.9.3"
+  },
+  "pkg": {
+    "scripts": "./build/**/*.js",
+    "assets": [
+      "./api/dist/mango-tree-api-extractor-backend",
+      "./site/.output/**/*",
+      "./site/.nitro/**/*",
+      "./site/.tanstack/**/*",
+      "./site/dist/**/*"
+    ],
+    "targets": [
+      "node22"
+    ],
+    "outputPath": "dist"
+  }
+}
