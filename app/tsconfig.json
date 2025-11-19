@@ -5,10 +5,16 @@
   "compilerOptions": {
     "rootDir": ".",
     "outDir": "./build",
-    "module": "nodenext",
+    "module": "esnext",
     "target": "esnext",
-    "types": ["node"],
-    "lib": ["esnext"],
+    "moduleResolution": "node",
+    "types": [
+      "node"
+    ],
+    "lib": [
+      "esnext"
+    ],
+    "esModuleInterop": true,
     "allowJs": true,
     "sourceMap": true,
     "declaration": true,
