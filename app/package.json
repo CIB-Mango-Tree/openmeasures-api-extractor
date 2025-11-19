@@ -1,12 +1,11 @@
 {
   "name": "mango-tree-api-extractor",
   "version": "1.0.0",
-  "type": "module",
   "description": "",
-  "bin": "./build/app.mjs",
+  "bin": "./build/index.js",
   "scripts": {
     "build": "tsc",
-    "build:sea": "node ./build/build-sea-config.mjs -i mango-tree-api-extractor-backend:../api/dist/mango-tree-api-extractor-backend ../site/.output ../site/.nitro ../site/.tanstack ../site/dist",
+    "build:sea": "node ./build/build-sea-config.js -i mango-tree-api-extractor-backend:../api/dist/mango-tree-api-extractor-backend ../site/.output ../site/.nitro ../site/.tanstack ../site/dist",
     "compile:sea": "node --experimental-sea-config sea-config.json",
     "compile:copy": "mkdir -p ./dist && cp $(command -v node) ./dist/mango-tree-api-extractor",
     "compile:postject": "postject ./dist/mango-tree-api-extractor NODE_SEA_BLOB ./build/sea-blob.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2"

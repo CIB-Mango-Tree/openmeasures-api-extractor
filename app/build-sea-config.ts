@@ -37,7 +37,7 @@ function main(): void {
     .description('CLI tool for creating a Node.JS Single Executable Application config for the mango-tree-api-extractor app')
     .version("1.0.0");
   program
-    .option('-m', 'define name/path of main file', './build/app.js')
+    .option('-m', 'define name/path of main file', './build/index.js')
     .option('-o', 'define name/path of the Single Executable Application blob', './build/sea-blob.blob')
     .option('-s', 'enable snapshots', false)
     .option('-c', 'enable code caching', false)
