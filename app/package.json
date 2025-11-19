@@ -2,20 +2,22 @@
   "name": "mango-tree-api-extractor",
   "version": "1.0.0",
   "description": "",
-  "bin": "./build/index.js",
   "scripts": {
-    "build": "tsc",
-    "build:sea": "node ./build/build-sea-config.js -i mango-tree-api-extractor-backend:../api/dist/mango-tree-api-extractor-backend ../site/.output ../site/.nitro ../site/.tanstack ../site/dist",
+    "typecheck": "tsc --noEmit",
+    "build:main": "esbuild index.ts --bundle --platform=node --format=esm --outfile=build/index.mjs && echo '{\"type\":\"module\"}' > build/package.json",
+    "build:sea:builder": "esbuild build-sea-config.ts --bundle --platform=node --format=esm --outfile=build/build-sea-config.mjs --external:fs --external:path",
+    "build:sea": "node ./build/build-sea-config.mjs -i mango-tree-api-extractor-backend:../api/dist/mango-tree-api-extractor-backend package.json:./build/package.json ../site/.output ../site/.nitro ../site/.tanstack ../site/dist",
     "compile:sea": "node --experimental-sea-config sea-config.json",
-    "compile:copy": "mkdir -p ./dist && cp $(command -v node) ./dist/mango-tree-api-extractor",
+    "compile:copy": "mkdir -p ./dist && cp $(command -v node) ./dist/mango-tree-api-extractor && chmod +x ./dist/mango-tree-api-extractor",
     "compile:postject": "postject ./dist/mango-tree-api-extractor NODE_SEA_BLOB ./build/sea-blob.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "CIB Mango Tree",
+  "license": "MIT",
   "packageManager": "pnpm@10.7.0",
   "devDependencies": {
     "@types/node": "^24.10.1",
+    "esbuild": "^0.27.0",
     "postject": "1.0.0-alpha.6",
     "typescript": "^5.9.3"
   },
