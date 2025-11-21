@@ -320,3 +320,4 @@ dist
 # End of https://www.toptal.com/developers/gitignore/api/node
 .DS_Store
 sea-config.json
+app/bundle
