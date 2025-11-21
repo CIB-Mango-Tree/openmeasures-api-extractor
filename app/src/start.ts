@@ -1,0 +1,53 @@
+import { readFile, writeFile, chmod, stat, mkdir } from 'fs/promises';
+import { existsSync } from 'fs';
+import { join } from 'path';
+import { spawn } from 'child_process';
+import { createHash } from 'crypto';
+import appDirs from 'appdirsjs';
+import chalk from 'chalk';
+import { copyDir } from './dir';
+import type { ChildProcess } from 'child_process';
+import type { Stats } from 'fs';
+
+export async function start(): Promise<void> {
+  const backendName: string = 'mango-tree-api-extractor-backend';
+  const appDirectories = appDirs({ appName: 'mango-tree-api-extractor' });
+  const backendFilePath: string = join(appDirectories.data, backendName);
+  const runtimeStats: Stats = await stat(process.execPath);
+  const runtimeHash: string = createHash('md5')
+    .update(`${runtimeStats.size}-${runtimeStats.mtimeMs}`)
+    .digest('hex')
+    .slice(0, 8);
+  const cacheHashFilePath: string = join(appDirectories.data, '.cache-hash');
+  const currentHash: string | null = existsSync(cacheHashFilePath) ? (await readFile(cacheHashFilePath)).toString() : null;
+
+  if (runtimeHash !== currentHash) {
+    if (!existsSync(appDirectories.data)) mkdir(appDirectories.data);
+
+    const bundlePath: string = join(__dirname, '..', 'bundle');
+    const backendBinary: Buffer = await readFile(join(bundlePath, backendName));
+    const writeOperations: Array<PromiseSettledResult<void>> = await Promise.allSettled([
+      writeFile(cacheHashFilePath, runtimeHash, { encoding: 'utf-8' }),
+      writeFile(backendFilePath, backendBinary),
+      copyDir(join(bundlePath, '.output'), join(appDirectories.data, '.output')),
+      copyDir(join(bundlePath, '.nitro'), join(appDirectories.data, '.nitro')),
+      copyDir(join(bundlePath, 'dist'), join(appDirectories.data, 'dist')),
+    ]);
+
+    for (const operation of writeOperations) {
+      if (operation.status === 'rejected') throw Error(operation.reason);
+    }
+
+    await chmod(backendFilePath, 0o755);
+  }
+
+  const backendProcess: ChildProcess = spawn(backendFilePath);
+  const frontendProcess: ChildProcess = spawn(process.execPath, [join(appDirectories.data, '.output', 'server', 'index.mjs')]);
+
+  process.on('SIGINT', (): void => {
+    console.log(chalk.bold.white('\n 🥭 Shutting down API extractor...\n'));
+    frontendProcess.kill();
+    backendProcess.kill();
+    process.exit();
+  });
+}

@@ -4,12 +4,8 @@
   "description": "",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build:main": "esbuild index.ts --bundle --platform=node --format=esm --outfile=build/index.mjs && echo '{\"type\":\"module\"}' > build/package.json",
-    "build:sea:builder": "esbuild build-sea-config.ts --bundle --platform=node --format=esm --outfile=build/build-sea-config.mjs --external:fs --external:path",
-    "build:sea": "node ./build/build-sea-config.mjs -i mango-tree-api-extractor-backend:../api/dist/mango-tree-api-extractor-backend package.json:./build/package.json ../site/.output ../site/.nitro ../site/.tanstack ../site/dist",
-    "compile:sea": "node --experimental-sea-config sea-config.json",
-    "compile:copy": "mkdir -p ./dist && cp $(command -v node) ./dist/mango-tree-api-extractor && chmod +x ./dist/mango-tree-api-extractor",
-    "compile:postject": "postject ./dist/mango-tree-api-extractor NODE_SEA_BLOB ./build/sea-blob.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2"
+    "compile": "pkg -c ./package.json ./build/index.mjs",
+    "build": "tsc --noEmit && esbuild index.ts --bundle --platform=node --format=cjs --outfile=build/index.mjs"
   },
   "keywords": [],
   "author": "CIB Mango Tree",
@@ -17,12 +13,25 @@
   "packageManager": "pnpm@10.7.0",
   "devDependencies": {
     "@types/node": "^24.10.1",
+    "@yao-pkg/pkg": "^6.10.1",
     "esbuild": "^0.27.0",
-    "postject": "1.0.0-alpha.6",
     "typescript": "^5.9.3"
   },
+  "pkg": {
+    "assets": [
+      "./bundle/mango-tree-api-extractor-backend",
+      "./bundle/.output/**/*",
+      "./bundle/.nitro/**/*",
+      "./bundle/.tanstack/**/*",
+      "./bundle/dist/**/*"
+    ],
+    "targets": [
+      "node22"
+    ],
+    "outputPath": "dist"
+  },
   "dependencies": {
-    "commander": "^14.0.2",
-    "glob": "^12.0.0"
+    "appdirsjs": "^1.2.7",
+    "chalk": "^5.6.2"
   }
 }

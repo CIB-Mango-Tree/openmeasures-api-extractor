@@ -1,13 +1,14 @@
 {
   "include": [
-    "/**/*.ts"
+    "/**/*.ts",
+    "src/**/*.ts"
   ],
   "compilerOptions": {
-    "rootDir": ".",
+   "rootDir": ".",
     "outDir": "./build",
     "module": "esnext",
     "moduleResolution": "node",
-    "target": "es2015",
+    "target": "es2020",
     "types": [
       "node"
     ],
@@ -29,11 +30,17 @@
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
     "noUncheckedSideEffectImports": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
   },
   "exclude": [
     "**/node_modules/**",
     "**/dist/**",
     "**/build/**"
-  ]
+  ],
+
 }
