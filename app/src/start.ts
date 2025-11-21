@@ -22,7 +22,7 @@ export async function start(): Promise<void> {
   const currentHash: string | null = existsSync(cacheHashFilePath) ? (await readFile(cacheHashFilePath)).toString() : null;
 
   if (runtimeHash !== currentHash) {
-    if (!existsSync(appDirectories.data)) mkdir(appDirectories.data);
+    if (!existsSync(appDirectories.data)) await mkdir(appDirectories.data);
 
     const bundlePath: string = join(__dirname, '..', 'bundle');
     const backendBinary: Buffer = await readFile(join(bundlePath, backendName));
@@ -45,7 +45,7 @@ export async function start(): Promise<void> {
   const frontendProcess: ChildProcess = spawn(process.execPath, [join(appDirectories.data, '.output', 'server', 'index.mjs')]);
 
   process.on('SIGINT', (): void => {
-    console.log(chalk.bold.white('\n 🥭 Shutting down API extractor...\n'));
+    console.log(chalk.bold.white('\n🥭 Shutting down API extractor...\n'));
     frontendProcess.kill();
     backendProcess.kill();
     process.exit();
