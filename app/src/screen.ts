@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import { BIG_LOGO, SMALL_LOGO, ASCII_TREE } from './ascii_art';
 import type { ChalkInstance } from 'chalk';
 
-export function DrawScreen(): void {
+export function drawScreen(): void {
   const primaryColor: ChalkInstance = chalk.hex('#fcb103');
 
   if (process.stdout.columns >= 102) console.log(primaryColor(BIG_LOGO));
