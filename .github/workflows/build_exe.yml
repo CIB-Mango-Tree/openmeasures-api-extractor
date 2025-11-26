@@ -34,7 +34,7 @@ jobs:
             list_command: dir app\dist
           - platform_name: MacOS (x86)
             artifact_name: macos-x86
-            os: macos-13
+            os: macos-15-intel
             move_command: mv app/dist/mango-tree-api-extractor app/dist/mango-tree-api-extractor-macos-x86
             sha_command: shasum -a 1 app/dist/mango-tree-api-extractor-macos-x86 > app/dist/mango-tree-api-extractor-macos-x86.sha1
             sha_command_pkg: shasum -a 1 dist/mango-tree-api-extractor-macos-x86.pkg > app/dist/mango-tree-api-extractor-macos-x86.pkg.sha1
@@ -57,12 +57,12 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version-file: "api/.python-version"
-          cache: "uv"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v6
         with:
           version: "0.9.8"
+          enable-cache: true
 
       - name: Install Python Dependencies
         run: |
