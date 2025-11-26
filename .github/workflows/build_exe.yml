@@ -135,7 +135,7 @@ jobs:
           APPLE_APP_CERT_ID: "${{ inputs.is_release && secrets.APPLE_APP_CERT_ID || '' }}"
         run: |
           cd api
-          pyinstaller pyinstaller.spec
+          uv run pyinstaller pyinstaller.spec
           cd ../
 
       - name: Build the Production Frontend Bundles
