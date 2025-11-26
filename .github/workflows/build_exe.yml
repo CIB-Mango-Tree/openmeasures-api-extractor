@@ -70,17 +70,17 @@ jobs:
           uv sync --locked --all-extras --dev
           cd ../
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: "10.20.x"
-          run_install: false
-
       - name: Setup Node.JS
         uses: actions/setup-node@v4
         with:
           node-version: "22.x"
           cache: "pnpm"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: "10.20.x"
+          run_install: false
 
       - name: Install Node.JS Dependencies
         run: |
