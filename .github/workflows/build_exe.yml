@@ -62,7 +62,6 @@ jobs:
         uses: astral-sh/setup-uv@v6
         with:
           version: "0.9.8"
-          enable-cache: true
 
       - name: Install Python Dependencies
         run: |
@@ -74,7 +73,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22.x"
-          cache: "pnpm"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
