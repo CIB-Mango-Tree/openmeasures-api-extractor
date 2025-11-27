@@ -42,9 +42,9 @@ jobs:
           - platform_name: MacOS (arm64)
             artifact_name: macos-arm64
             os: macos-15
-            move_command: mv app/dist/mango-tree-api-extractor app/dist/mango-tree-api-extractor-arm64
-            sha_command: shasum -a 1 app/dist/mango-tree-api-extractor-arm64 > app/dist/mango-tree-api-extractor-arm64.sha1
-            sha_command_pkg: shasum -a 1 app/dist/mango-tree-api-extractor-arm64.pkg > app/dist/mango-tree-api-extractor-arm64.pkg.sha1
+            move_command: mv app/dist/mango-tree-api-extractor app/dist/mango-tree-api-extractor-macos-arm64
+            sha_command: shasum -a 1 app/dist/mango-tree-api-extractor-macos-arm64 > app/dist/mango-tree-api-extractor-macos-arm64.sha1
+            sha_command_pkg: shasum -a 1 app/dist/mango-tree-api-extractor-macos-arm64.pkg > app/dist/mango-tree-api-extractor-macos-arm64.pkg.sha1
             list_command: ls -ll app/dist
 
     name: Build ${{ matrix.platform_name }}
