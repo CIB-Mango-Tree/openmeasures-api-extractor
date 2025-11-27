@@ -119,6 +119,6 @@ exe = EXE(
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
+    codesign_identity=os.environ.get('APPLE_APP_CERT_ID'),
+    entitlements_file="../mango.entitlements",
 )

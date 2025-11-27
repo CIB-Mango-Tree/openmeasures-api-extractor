@@ -162,7 +162,7 @@ jobs:
       - name: Compute the SHA1 hashsum
         run: ${{ matrix.sha_command }}
 
-      - name: Create and sign mac package
+      - name: Create and sign mac package for app executable
         if: runner.os == 'macOS' && inputs.is_release
         env:
           APPLE_INST_CERT_ID: ${{secrets.APPLE_INST_CERT_ID}}
