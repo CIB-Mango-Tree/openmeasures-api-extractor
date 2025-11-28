@@ -139,8 +139,6 @@ jobs:
           cd ../
 
       - name: Build the Production Frontend Bundles
-        env:
-          APPLE_APP_CERT_ID: "${{ inputs.is_release && secrets.APPLE_APP_CERT_ID || '' }}"
         run: |
           cd site
           pnpm build
@@ -154,7 +152,7 @@ jobs:
           pnpm compile
           cd ../
 
-      - name: Sign Mac Executable (macOS)
+      - name: Sign App Executable (macOS)
         if: runner.os == 'macOS' && inputs.is_release
         env:
           APPLE_APP_CERT_ID: ${{secrets.APPLE_APP_CERT_ID}}
@@ -162,6 +160,7 @@ jobs:
         run: |
           security unlock-keychain -p $APPLE_KEYCHAIN_PASS build.keychain
           codesign --force --sign "$APPLE_APP_CERT_ID" --options runtime --timestamp app/dist/mango-tree-api-extractor
+          codesign --verify --verbose app/dist/mango-tree-api-extractor
 
       - name: Rename the executable to include platform suffix
         run: ${{ matrix.move_command }}
