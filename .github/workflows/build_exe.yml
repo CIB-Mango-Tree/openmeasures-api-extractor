@@ -146,9 +146,7 @@ jobs:
           pnpm build
           cd ../
 
-      - name: Build the App Executable
-        env:
-          APPLE_APP_CERT_ID: "${{ inputs.is_release && secrets.APPLE_APP_CERT_ID || '' }}"
+      - name: Build and Sign the App Executable
         run: |
           cd app
           ./copy_assets.sh
@@ -156,13 +154,22 @@ jobs:
           pnpm compile
           cd ../
 
+      - name: Sign Mac Executable (macOS)
+        if: runner.os == 'macOS' && inputs.is_release
+        env:
+          APPLE_APP_CERT_ID: ${{secrets.APPLE_APP_CERT_ID}}
+          APPLE_KEYCHAIN_PASS: ${{secrets.APPLE_KEY_PASS}}
+        run: |
+          security unlock-keychain -p $APPLE_KEYCHAIN_PASS build.keychain
+          codesign --force --sign "$APPLE_APP_CERT_ID" --options runtime --timestamp app/dist/mango-tree-api-extractor
+
       - name: Rename the executable to include platform suffix
         run: ${{ matrix.move_command }}
 
       - name: Compute the SHA1 hashsum
         run: ${{ matrix.sha_command }}
 
-      - name: Create and sign mac package for app executable
+      - name: Create and sign mac package
         if: runner.os == 'macOS' && inputs.is_release
         env:
           APPLE_INST_CERT_ID: ${{secrets.APPLE_INST_CERT_ID}}
