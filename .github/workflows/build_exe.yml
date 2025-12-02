@@ -37,7 +37,7 @@ jobs:
             os: macos-15-intel
             move_command: mv app/dist/mango-tree-api-extractor app/dist/mango-tree-api-extractor-macos-x86
             sha_command: shasum -a 1 app/dist/mango-tree-api-extractor-macos-x86 > app/dist/mango-tree-api-extractor-macos-x86.sha1
-            sha_command_pkg: shasum -a 1 dist/mango-tree-api-extractor-macos-x86.pkg > app/dist/mango-tree-api-extractor-macos-x86.pkg.sha1
+            sha_command_pkg: shasum -a 1 app/dist/mango-tree-api-extractor-macos-x86.pkg > app/dist/mango-tree-api-extractor-macos-x86.pkg.sha1
             list_command: ls -ll app/dist
           - platform_name: MacOS (arm64)
             artifact_name: macos-arm64
@@ -144,7 +144,7 @@ jobs:
           pnpm build
           cd ../
 
-      - name: Build and Sign the App Executable
+      - name: Build Executable
         run: |
           cd app
           ./copy_assets.sh
