@@ -172,7 +172,7 @@ jobs:
         run: |
           mkdir -p /tmp/cibmangotree/
           mkdir -p /tmp/cibmangotree/mango-tree-extractor/
-          cp app/dist/mango-tree-api-extractor-backend /tmp/cibmangotree/mango-tree-extractor/mango-tree-api-extractor-backend
+          cp api/dist/mango-tree-api-extractor-backend /tmp/cibmangotree/mango-tree-extractor/mango-tree-api-extractor-backend
           mv app/dist/mango-tree-api-extractor-${{matrix.artifact_name}} /tmp/cibmangotree/mango-tree-extractor
           ditto /tmp/cibmangotree/mango-tree-extractor/mango-tree-api-extractor-${{matrix.artifact_name}} /tmp/cibmangotree/mango-tree-extractor/mango-tree-api-extractor
           chmod +x /tmp/cibmangotree/mango-tree-extractor/mango-tree-api-extractor
