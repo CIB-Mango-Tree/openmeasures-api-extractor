@@ -1,4 +1,3 @@
-import { homedir } from 'os';
 import { readFile, writeFile, stat, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
