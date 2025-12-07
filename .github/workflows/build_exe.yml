@@ -198,7 +198,7 @@ jobs:
         run: |
           mkdir $env:TEMP\cibmangotree
           mkdir $env:TEMP\cibmangotree\mango-tree-extractor
-          move app\dist\mango-tree-api-extractor-windows.exe $env:TEMP\cibmangotree\mango-tree-extractor\mango-tree-api-extractor.exe
+          move app\dist\mango-tree-api-extractor-${{matrix.artifact_name}}.exe $env:TEMP\cibmangotree\mango-tree-extractor\mango-tree-api-extractor.exe
           move api\dist\mango-tree-api-extractor-backend.exe $env:TEMP\cibmangotree\mango-tree-api-extractor-backend.exe
           makensis /DINPUT_DIR="$env:TEMP\cibmangotree\mango-tree-extractor" /DOUTPUT_FILE="app\dist\mango-tree-api-extractor-windows-installer.exe" app\installer.nsi
         shell: pwsh
