@@ -44,7 +44,7 @@ export async function start(): Promise<void> {
     process.platform === 'freebsd' ||
     process.platform === 'openbsd'
   ) backendPath = '/usr/local/bin/mango-tree-api-extractor-backend';
-  if (process.platform === 'win32') backendPath = join(process.env.LOCALAPPDATA as string, 'mango-tree-extractor', 'mango-tree-api-extractor-backend.exe');
+  if (process.platform === 'win32') backendPath = join(process.env.ProgramFiles as string, 'mango-tree-extractor', 'mango-tree-api-extractor-backend.exe');
   if (backendPath.length === 0) throw Error('unsupported platform...');
 
   const backendProcess: ChildProcess = spawn(backendPath);
