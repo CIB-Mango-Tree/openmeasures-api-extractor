@@ -30,21 +30,16 @@ jobs:
             os: windows-2022
             version_command: icacls "VERSION" /grant Everyone:F /T /C /Q
             move_command: move app\dist\mango-tree-api-extractor.exe app\dist\mango-tree-api-extractor-windows.exe
-            sha_command: pwsh -c "Get-FileHash -Algorithm SHA1 app\dist\mango-tree-api-extractor-windows.exe | Format-Table Hash -HideTableHeaders > app\dist\mango-tree-api-extractor-windows.exe.sha1"
             list_command: dir app\dist
           - platform_name: MacOS (x86)
             artifact_name: macos-x86
             os: macos-15-intel
             move_command: mv app/dist/mango-tree-api-extractor app/dist/mango-tree-api-extractor-macos-x86
-            sha_command: shasum -a 1 app/dist/mango-tree-api-extractor-macos-x86 > app/dist/mango-tree-api-extractor-macos-x86.sha1
-            sha_command_pkg: shasum -a 1 app/dist/mango-tree-api-extractor-macos-x86.pkg > app/dist/mango-tree-api-extractor-macos-x86.pkg.sha1
             list_command: ls -ll app/dist
           - platform_name: MacOS (arm64)
             artifact_name: macos-arm64
             os: macos-15
             move_command: mv app/dist/mango-tree-api-extractor app/dist/mango-tree-api-extractor-macos-arm64
-            sha_command: shasum -a 1 app/dist/mango-tree-api-extractor-macos-arm64 > app/dist/mango-tree-api-extractor-macos-arm64.sha1
-            sha_command_pkg: shasum -a 1 app/dist/mango-tree-api-extractor-macos-arm64.pkg > app/dist/mango-tree-api-extractor-macos-arm64.pkg.sha1
             list_command: ls -ll app/dist
 
     name: Build ${{ matrix.platform_name }}
@@ -88,6 +83,10 @@ jobs:
           cd app
           pnpm install
           cd ../
+
+      - name: Install NSIS (windows)
+        if: runner.os == 'Windows'
+        run: choco install nsis -y
 
       - name: Create macOS keychain
         id: keychain
@@ -165,9 +164,6 @@ jobs:
       - name: Rename the executable to include platform suffix
         run: ${{ matrix.move_command }}
 
-      - name: Compute the SHA1 hashsum
-        run: ${{ matrix.sha_command }}
-
       - name: Create and sign mac package
         if: runner.os == 'macOS' && inputs.is_release
         env:
@@ -175,8 +171,11 @@ jobs:
           APPLE_KEYCHAIN_PASS: ${{secrets.APPLE_KEY_PASS}}
         run: |
           mkdir -p /tmp/cibmangotree/
-          ditto app/dist/mango-tree-api-extractor-${{matrix.artifact_name}} /tmp/cibmangotree/mango-tree-api-extractor
-          chmod +x /tmp/cibmangotree/mango-tree-api-extractor
+          mkdir -p /tmp/cibmangotree/mango-tree-extractor/
+          cp app/dist/mango-tree-api-extractor-backend /tmp/cibmangotree/mango-tree-extractor/mango-tree-api-extractor-backend
+          mv app/dist/mango-tree-api-extractor-${{matrix.artifact_name}} /tmp/cibmangotree/mango-tree-extractor
+          ditto /tmp/cibmangotree/mango-tree-extractor/mango-tree-api-extractor-${{matrix.artifact_name}} /tmp/cibmangotree/mango-tree-extractor/mango-tree-api-extractor
+          chmod +x /tmp/cibmangotree/mango-tree-extractor/mango-tree-api-extractor
           security unlock-keychain -p $APPLE_KEYCHAIN_PASS build.keychain
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$APPLE_KEYCHAIN_PASS" build.keychain
           security find-identity -v -p codesigning build.keychain
@@ -194,6 +193,16 @@ jobs:
         if: runner.os == 'macOS' && inputs.is_release
         run: xcrun stapler staple app/dist/mango-tree-api-extractor-${{matrix.artifact_name}}-signed.pkg
 
+      - name: Create Windows package
+        if: runner.os == 'Windows'
+        run: |
+          mkdir $env:TEMP\cibmangotree
+          mkdir $env:TEMP\cibmangotree\mango-tree-extractor
+          move app\dist\mango-tree-api-extractor.exe $env:TEMP\cibmangotree\mango-tree-extractor.exe
+          move api\dist\mango-tree-api-extractor-backend.exe $env:TEMP\cibmangotree\mango-tree-extractor.exe
+          makensis /DINPUT_DIR="$env:TEMP\cibmangotree\mango-tree-extractor" /DOUTPUT_FILE="app\dist\mango-tree-api-extractor-windows-installer.exe" app\installer.nsi
+        shell: pwsh
+
       - name: Clean up macOS Artifacts
         if: runner.os == 'macOS' && inputs.is_release
         run: |
@@ -202,9 +211,10 @@ jobs:
           rm -rf app/dist/mango-tree-api-extractor-${{matrix.artifact_name}}.pkg
           mv app/dist/mango-tree-api-extractor-${{matrix.artifact_name}}-signed.pkg app/dist/mango-tree-api-extractor-${{matrix.artifact_name}}.pkg
 
-      - name: Compute the SHA1 hashsum for macOS .pkg
-        if: runner.os == 'macOS' && inputs.is_release
-        run: ${{ matrix.sha_command_pkg }}
+      - name: Clean up Windows Artifacts
+        if: runner.os == 'Windows' && inputs.is_release
+        run: Remove-Item -Recurse -Force $env:TEMP\cibmangotree
+        shell: pwsh
 
       - name: Inspect the dist/ directory before uploading artifacts
         run: ${{ matrix.list_command }}

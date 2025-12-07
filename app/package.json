@@ -19,7 +19,6 @@
   },
   "pkg": {
     "assets": [
-      "./bundle/mango-tree-api-extractor-backend",
       "./bundle/.output/**/*",
       "./bundle/.nitro/**/*",
       "./bundle/.tanstack/**/*",
