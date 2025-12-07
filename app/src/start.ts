@@ -1,3 +1,4 @@
+import { homedir } from 'os';
 import { readFile, writeFile, stat, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
@@ -35,7 +36,19 @@ export async function start(): Promise<void> {
     }
   }
 
-  const backendProcess: ChildProcess = spawn(`./mango-tree-api-extractor-backend${process.platform === 'win32' ? '.exe' : ''}`);
+  let backendPath: string = '';
+
+  if (process.platform === 'darwin') backendPath = '/Applications/mango-tree-extractor/mango-tree-api-extractor-backend';
+  if (
+    process.platform === 'linux' ||
+    process.platform === 'netbsd' ||
+    process.platform === 'freebsd' ||
+    process.platform === 'openbsd'
+  ) backendPath = '/usr/local/bin/mango-tree-api-extractor-backend';
+  if (process.platform === 'win32') backendPath = join(process.env.LOCALAPPDATA as string, 'mango-tree-api-extractor', 'mango-tree-api-extractor-backend.exe');
+  if (backendPath.length === 0) throw Error('unsupported platform...');
+
+  const backendProcess: ChildProcess = spawn(backendPath);
   const frontendProcess: ChildProcess = spawn(process.execPath, [join(appDirectories.data, '.output', 'server', 'index.mjs')]);
   const handleKill = (): void => {
     console.log(chalk.bold.white('\n🥭 Shutting down API extractor...\n'));

@@ -173,9 +173,9 @@ jobs:
           mkdir -p /tmp/cibmangotree/
           mkdir -p /tmp/cibmangotree/mango-tree-extractor/
           mv api/dist/mango-tree-api-extractor-backend /tmp/cibmangotree/mango-tree-extractor/mango-tree-api-extractor-backend
-          mv app/dist/mango-tree-api-extractor-${{matrix.artifact_name}} /tmp/cibmangotree/mango-tree-extractor/mango-tree-api-extractor-${{matrix.artifact_name}}
-          ditto /tmp/cibmangotree/mango-tree-extractor/mango-tree-api-extractor-${{matrix.artifact_name}} /tmp/cibmangotree/mango-tree-extractor/mango-tree-api-extractor
+          mv app/dist/mango-tree-api-extractor-${{matrix.artifact_name}} /tmp/cibmangotree/mango-tree-extractor/mango-tree-api-extractor
           chmod +x /tmp/cibmangotree/mango-tree-extractor/mango-tree-api-extractor
+          chmod +x /tmp/cibmangotree/mango-tree-extractor/mango-tree-api-extractor-backend
           security unlock-keychain -p $APPLE_KEYCHAIN_PASS build.keychain
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$APPLE_KEYCHAIN_PASS" build.keychain
           security find-identity -v -p codesigning build.keychain
