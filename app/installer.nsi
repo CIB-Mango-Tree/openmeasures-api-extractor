@@ -10,7 +10,7 @@
 !endif
 
 Name "Mango Tree API Extractor"
-OutFile "app\dist\mango-tree-api-extractor-windows-installer.exe"
+OutFile "dist\mango-tree-api-extractor-windows-installer.exe"
 InstallDir "$PROGRAMFILES\mango-tree-api-extractor"
 RequestExecutionLevel user
 
