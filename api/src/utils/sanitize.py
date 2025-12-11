@@ -1,8 +1,7 @@
 from html import unescape
-from typing import Union
 
 
-def clean_text(text: Union[str, None]) -> Union[str, None]:
+def clean_text(text: str | None) -> str | None:
     if text is None:
         return text
 
