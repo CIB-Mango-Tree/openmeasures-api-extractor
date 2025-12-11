@@ -369,7 +369,8 @@ class QueryService:
                     if source.get("text") is not None:
                         source["text"] = clean_text(source["text"])
 
-                    cleaned_data.append(source)
+                    hit["_source"] = source
+                    cleaned_data.append(hit)
 
                 request.cleaned_data = cleaned_data
 
@@ -416,6 +417,9 @@ class QueryService:
             data_frame: DataFrame = query.from_requests_to_dataframe()
             logger.debug(f"Dataframe created with {len(data_frame)} rows")
 
+            data_frame.columns = data_frame.columns.str.replace(
+                "_source.", "", regex=False
+            )
             dataframe_columns = PLATFORMS.get(query.platform, {}).get("columns", None)
 
             if dataframe_columns is None:
