@@ -33,7 +33,7 @@ from src.endpoints import (
 )
 from src.settings import HOST, PORT, DATABASE_URL, DEBUG
 from src.log import logger
-from src.utils.user_dir import initialize_user_dir_if_not_exists, get_app_data_dir
+import src.utils.user_dir
 
 
 async def refresh_limit_task(limit_service: QueryLimitService) -> None:
