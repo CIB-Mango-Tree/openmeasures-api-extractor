@@ -47,10 +47,23 @@ export async function start(): Promise<void> {
   if (process.platform === 'win32') backendPath = join(process.env.ProgramFiles as string, 'mango-tree-extractor', 'mango-tree-api-extractor-backend.exe');
   if (backendPath.length === 0) throw Error('unsupported platform...');
 
-  const backendProcess: ChildProcess = spawn(backendPath);
+  const backendProcess: ChildProcess = spawn(backendPath, {stdio: 'inherit'});
   const frontendProcess: ChildProcess = spawn(process.execPath, [join(appDirectories.data, '.output', 'server', 'index.mjs')], {
     env: { ...process.env, NITRO_HOST: '127.0.0.1', NITRO_PORT: '3000' },
   });
+
+  backendProcess.on('error', (err) => {
+    console.error(chalk.red(`Failed to start backend at ${backendPath}:`), err);
+    process.exit(1);
+  });
+
+  backendProcess.on('exit', (code, signal) => {
+    if (code !== 0 && code !== null) {
+      console.error(chalk.red(`Backend exited with code ${code} (signal ${signal})`));
+      process.exit(1);
+    }
+  });
+
   const handleKill = (): void => {
     console.log(chalk.bold.white('\n🥭 Shutting down API extractor...\n'));
     frontendProcess.kill();
