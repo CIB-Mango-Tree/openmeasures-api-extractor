@@ -11,6 +11,6 @@ export function drawScreen(): void {
 
   console.log(primaryColor(ASCII_TREE));
   console.log(`${primaryColor.bold('CIB Mango Tree API Extractor')}\n     ${chalk.dim.white('For openmeasures')}\n`);
-  console.log(`  ${primaryColor('\u2192')} ${chalk.bold.white('API:')} http://localhost:8000/api`);
-  console.log(`  ${primaryColor('\u2192')} ${chalk.bold.white('UI:')} http://localhost:3000`);
+  console.log(`  ${primaryColor('\u2192')} ${chalk.bold.white('API:')} http://127.0.0.1:8000/api`);
+  console.log(`  ${primaryColor('\u2192')} ${chalk.bold.white('UI:')} http://127.0.0.1:3000`);
 }
