@@ -48,7 +48,9 @@ export async function start(): Promise<void> {
   if (backendPath.length === 0) throw Error('unsupported platform...');
 
   const backendProcess: ChildProcess = spawn(backendPath);
-  const frontendProcess: ChildProcess = spawn(process.execPath, [join(appDirectories.data, '.output', 'server', 'index.mjs')]);
+  const frontendProcess: ChildProcess = spawn(process.execPath, [join(appDirectories.data, '.output', 'server', 'index.mjs')], {
+    env: { ...process.env, NITRO_HOST: '127.0.0.1', NITRO_PORT: '3000' },
+  });
   const handleKill = (): void => {
     console.log(chalk.bold.white('\n🥭 Shutting down API extractor...\n'));
     frontendProcess.kill();
