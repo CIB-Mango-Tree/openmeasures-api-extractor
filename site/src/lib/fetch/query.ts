@@ -5,19 +5,19 @@ type AsyncAPIQueryResponse = Promise<APIResponse<QueryResponse> | APIErrorCollec
 type APIMessageResponse = APIResponse<{ message: string; }>;
 
 export async function GETQueries(): Promise<APICollectionResponse<QueryResponse>> {
-  const response: Response = await fetch(`${import.meta.env.VITE_API_URL}/api/queries`, { method: 'GET' });
+  const response: Response = await fetch('/api/queries', { method: 'GET' });
 
   return await response.json() as APICollectionResponse<QueryResponse>;
 }
 
 export async function GETQuery(id: string): AsyncAPIQueryResponse {
-  const response: Response = await fetch(`${import.meta.env.VITE_API_URL}/api/queries/${id}`, { method: 'GET' });
+  const response: Response = await fetch(`/api/queries/${id}`, { method: 'GET' });
 
   return await response.json() as APIResponse<QueryResponse>;
 }
 
 export async function POSTQuery(data: CreateQueryPayload): AsyncAPIQueryResponse {
-  const response: Response = await fetch(`${import.meta.env.VITE_API_URL}/api/queries`, {
+  const response: Response = await fetch('/api/queries', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -31,7 +31,7 @@ export async function POSTQuery(data: CreateQueryPayload): AsyncAPIQueryResponse
 }
 
 export async function PATCHQuery(id: string, status: string): AsyncAPIQueryResponse {
-  const response: Response = await fetch(`${import.meta.env.VITE_API_URL}/api/queries/${id}`, {
+  const response: Response = await fetch(`/api/queries/${id}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json'
@@ -43,7 +43,7 @@ export async function PATCHQuery(id: string, status: string): AsyncAPIQueryRespo
 }
 
 export async function DELETEQuery(id: string): Promise<APIMessageResponse> {
-  const response: Response = await fetch(`${import.meta.env.VITE_API_URL}/api/queries/${id}`, { method: 'DELETE' });
+  const response: Response = await fetch(`/api/queries/${id}`, { method: 'DELETE' });
 
   return await response.json() as APIMessageResponse;
 }

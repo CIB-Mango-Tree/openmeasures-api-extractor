@@ -12,7 +12,7 @@ export interface ExportButtonProps {
 
 export function ExportButton({ id, disabled = false }: ExportButtonProps): ReactElement<FC> {
   const [open, setOpen] = useState<boolean>(false);
-  const baseUrl: string = `${import.meta.env.VITE_API_URL}/api/queries/${id}/download`;
+  const baseUrl: string = `/api/queries/${id}/download`;
   const chevronClasses: string = cn({ 'rotate-180': open }, 'transform-gpu transition-transform');
   const handleOpenChange = (open: boolean): void => setOpen(open);
 

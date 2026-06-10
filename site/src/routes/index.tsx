@@ -64,8 +64,9 @@ function App(): ReactElement<FC> {
 
     func();
 
+    const wsProtocol: string = window.location.protocol === 'https:' ? 'wss' : 'ws';
     connectionRef.current = new WebSocketConnection(
-      `${import.meta.env.VITE_API_URL.replace('http', 'ws')}/api/ws/updates`
+      `${wsProtocol}://${window.location.host}/api/ws/updates`
     );
 
     connectionRef.current.on(FETCH_UPDATE_PROGRESS, (data: EventMessageData): void => {
