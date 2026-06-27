@@ -1,4 +1,5 @@
 import { defineWebSocketHandler } from 'h3';
+import { logDiagnostic } from '../../../lib/diagnostics-log';
 import type { Peer } from 'crossws';
 
 const BACKEND_WS_URL = 'ws://127.0.0.1:8000/api/ws/updates';
@@ -12,11 +13,19 @@ const stateByPeer = new WeakMap<Peer, ProxyState>();
 
 export default defineWebSocketHandler({
   open(peer) {
+    const reqHeaders = peer.request?.headers;
+    logDiagnostic(
+      `ws upgrade open: origin=${reqHeaders?.get('origin')} ` +
+      `host=${reqHeaders?.get('host')} remote=${peer.remoteAddress} ` +
+      `upstream=${BACKEND_WS_URL}`
+    );
+
     const backend = new WebSocket(BACKEND_WS_URL);
     const state: ProxyState = { backend, backlog: [] };
     stateByPeer.set(peer, state);
 
     backend.addEventListener('open', () => {
+      logDiagnostic('ws upstream connected');
       for (const msg of state.backlog) backend.send(msg);
       state.backlog = [];
     });
@@ -32,6 +41,7 @@ export default defineWebSocketHandler({
 
     backend.addEventListener('error', (event) => {
       console.error('WS proxy: backend error', event);
+      logDiagnostic(`ws upstream error: ${(event as ErrorEvent)?.message ?? event?.type ?? 'unknown'}`);
       try { peer.close(1011, 'backend error'); } catch { /* peer already closed */ }
       stateByPeer.delete(peer);
     });

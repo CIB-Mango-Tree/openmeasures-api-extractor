@@ -47,9 +47,17 @@ export async function start(): Promise<void> {
   if (process.platform === 'win32') backendPath = join(process.env.ProgramFiles as string, 'mango-tree-extractor', 'mango-tree-api-extractor-backend.exe');
   if (backendPath.length === 0) throw Error('unsupported platform...');
 
+  const nitroHost = '127.0.0.1';
+  const nitroPort = '3000';
+
+  console.log(chalk.cyan(
+    `🥭 Starting: frontend bind=${nitroHost}:${nitroPort} (IPv4) | backend=${backendPath} (expects 127.0.0.1:8000). ` +
+    `Open the app at http://${nitroHost}:${nitroPort} to match the server bind exactly.`
+  ));
+
   const backendProcess: ChildProcess = spawn(backendPath, {stdio: 'inherit'});
   const frontendProcess: ChildProcess = spawn(process.execPath, [join(appDirectories.data, '.output', 'server', 'index.mjs')], {
-    env: { ...process.env, NITRO_HOST: '127.0.0.1', NITRO_PORT: '3000' },
+    env: { ...process.env, NITRO_HOST: nitroHost, NITRO_PORT: nitroPort },
   });
 
   backendProcess.on('error', (err) => {

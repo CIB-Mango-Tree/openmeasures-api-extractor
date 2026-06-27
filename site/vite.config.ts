@@ -21,6 +21,7 @@ const config = defineConfig({
       routeRules: {
         '/api/**': { proxy: { to: 'http://127.0.0.1:8000/api/**' } },
       },
+      plugins: ['./src/server/diagnostics-plugin.ts'],
       handlers: [
         {
           route: '/api/ws/updates',

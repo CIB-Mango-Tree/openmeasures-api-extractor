@@ -31,6 +31,7 @@ from src.endpoints import (
     UpdateStreamEndpoint,
     PlatformsEndpoint,
 )
+from src.middleware import DiagnosticsMiddleware
 from src.settings import HOST, PORT, DATABASE_URL, DEBUG
 from src.log import logger
 import src.utils.user_dir
@@ -103,6 +104,7 @@ def main() -> None:
         routes=routes,
         lifespan=lifespan,
         middleware=[
+            Middleware(DiagnosticsMiddleware),
             Middleware(
                 CORSMiddleware,
                 allow_origin_regex=r"^https?://(127\.0\.0\.1|localhost)(:\d+)?$",
