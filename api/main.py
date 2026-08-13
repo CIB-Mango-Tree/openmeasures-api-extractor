@@ -24,6 +24,7 @@ from src.services import (
     WebSocketService,
 )
 from src.endpoints import (
+    Home,
     QueriesEndpoint,
     QueryEndpoint,
     QueryLimitEndpoint,
@@ -82,6 +83,7 @@ def main() -> None:
         query_limit_router.route("/api/limit", endpoint=QueryLimitEndpoint),
         websocket_router.ws_route("/api/ws/updates", endpoint=UpdateStreamEndpoint),
         Route("/api/platforms", endpoint=PlatformsEndpoint),
+        Route("/api/health", endpoint=Home),
     ]
 
     @asynccontextmanager

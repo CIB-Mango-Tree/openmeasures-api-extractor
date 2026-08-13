@@ -60,9 +60,62 @@ function App(): ReactElement<FC> {
 
       if (limitResponsePromiseResult.status === 'fulfilled') limitState.set(mapResponseToLimit(limitResponsePromiseResult.value.data));
       if (apiResponsePromiseResult.status === 'fulfilled') queriesState.set(apiResponsePromiseResult.value.data.map((item: QueryResponse): Query => mapResponseToQuery(item)));
+
+      // allSettled swallows rejections by design, so without this a backend that never came up
+      // just leaves the page looking empty. One toast, not one per failed call.
+      const failures: Array<PromiseRejectedResult> = responses.filter(
+        (item): item is PromiseRejectedResult => item.status === 'rejected'
+      );
+
+      if (failures.length > 0) {
+        console.error('Initial data load failed:', failures.map((item: PromiseRejectedResult): unknown => item.reason));
+        toast.error('Could not load your extractions', {
+          description: 'The extractor service is not responding yet. It may still be starting up.'
+        });
+      }
+
+      // Restoring from localStorage has to wait for GETQueries above: it looks queries up by id,
+      // and running it while the fetch was still in flight meant the lookup always missed and the
+      // saved ids were deleted on every single mount.
+      restoreFromStorage();
     };
 
-    func();
+    const restoreFromStorage = (): void => {
+      const fetchingQueryID: string | null = window.localStorage.getItem(FETCHING_QUERY_KEY);
+      const selectedQueryID: string | null = window.localStorage.getItem(SELECTED_QUERY_KEY);
+
+      if (fetchingQueryID != null) {
+        const queriesState = useQueries.getState();
+        const query = queriesState.queries.find((item: Query): boolean => item.id === fetchingQueryID);
+
+        if (query != null && query.status !== QUERY_COMPLETE) {
+          const fetchingState = useFetchingQueryState.getState();
+
+          connectionRef.current?.subscribe(fetchingQueryID);
+          fetchingState.setQuery(query);
+          fetchingState.toggleShow();
+
+        } else {
+          window.localStorage.removeItem(FETCHING_QUERY_KEY);
+        }
+      }
+
+      if (selectedQueryID != null) {
+        const queriesState = useQueries.getState();
+        const query = queriesState.queries.find((item: Query): boolean => item.id === selectedQueryID);
+
+        if (query != null && query.status !== QUERY_COMPLETE) {
+          const selectedState = useSelectedQuery.getState();
+
+          selectedState.setQuery(query);
+          selectedState.setCurrentView('progress');
+          connectionRef.current?.subscribe(selectedQueryID);
+
+        } else {
+          window.localStorage.removeItem(SELECTED_QUERY_KEY);
+        }
+      }
+    };
 
     const wsProtocol: string = window.location.protocol === 'https:' ? 'wss' : 'ws';
     connectionRef.current = new WebSocketConnection(
@@ -137,40 +190,7 @@ function App(): ReactElement<FC> {
       if (selectedState.selectedQuery != null && selectedState.currentView === 'progress') selectedState.setCurrentView('details');
     });
 
-    const fetchingQueryID: string | null = window.localStorage.getItem(FETCHING_QUERY_KEY);
-    const selectedQueryID: string | null = window.localStorage.getItem(SELECTED_QUERY_KEY);
-
-    if (fetchingQueryID != null) {
-      const queriesState = useQueries.getState();
-      const query = queriesState.queries.find((item: Query): boolean => item.id === fetchingQueryID);
-
-      if (query != null && query.status !== QUERY_COMPLETE) {
-        const fetchingState = useFetchingQueryState.getState();
-
-        connectionRef.current.subscribe(fetchingQueryID);
-        fetchingState.setQuery(query);
-        fetchingState.toggleShow();
-
-      } else {
-        window.localStorage.removeItem(FETCHING_QUERY_KEY);
-      }
-    }
-
-    if (selectedQueryID != null) {
-      const queriesState = useQueries.getState();
-      const query = queriesState.queries.find((item: Query): boolean => item.id === selectedQueryID);
-
-      if (query != null && query.status !== QUERY_COMPLETE) {
-        const selectedState = useSelectedQuery.getState();
-
-        selectedState.setQuery(query);
-        selectedState.setCurrentView('progress');
-        connectionRef.current.subscribe(selectedQueryID);
-
-      } else {
-        window.localStorage.removeItem(SELECTED_QUERY_KEY);
-      }
-    }
+    func();
 
     return (): void => {
       connectionRef.current?.close();

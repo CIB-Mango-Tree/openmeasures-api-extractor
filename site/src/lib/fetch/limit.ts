@@ -1,8 +1,7 @@
+import { apiFetch } from './client';
 import type { LimitResponse } from '@appTypes/limit';
 import type { APIResponse } from '@appTypes/fetch';
 
 export async function GETLimit(): Promise<APIResponse<LimitResponse>> {
-  const response: Response = await fetch('/api/limit', { method: 'GET' });
-
-  return await response.json() as APIResponse<LimitResponse>;
+  return await apiFetch<APIResponse<LimitResponse>>('/api/limit', { method: 'GET' });
 }

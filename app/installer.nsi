@@ -10,9 +10,15 @@
 !endif
 
 Name "Mango Tree API Extractor"
-OutFile "dist\mango-tree-api-extractor-windows-installer.exe"
-InstallDir "$PROGRAMFILES\mango-tree-api-extractor"
-RequestExecutionLevel user
+; Must use the define: the workflow passes /DOUTPUT_FILE and then uploads app\dist\*, but makensis
+; runs from the repo root, so a hardcoded relative path wrote the installer outside app\dist.
+OutFile "${OUTPUT_FILE}"
+; Directory name must match the fallback in app/src/start.ts (and mirrors the macOS
+; /Applications/mango-tree-extractor layout).
+InstallDir "$PROGRAMFILES\mango-tree-extractor"
+; Writing to Program Files needs elevation; with "user" the install silently fails or gets
+; redirected into VirtualStore.
+RequestExecutionLevel admin
 
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES

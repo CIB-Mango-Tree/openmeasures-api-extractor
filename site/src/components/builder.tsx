@@ -1,9 +1,11 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { useLimitState, useLimitAlertState } from '@state/limit';
 import { useFetchingQueryState, useQueries } from '@state/query';
 import { formatISO } from 'date-fns';
 import { POSTQuery } from '@lib/fetch/query';
 import { GETPlatforms } from '@lib/fetch/platform';
+import { ApiError } from '@lib/fetch/client';
 import { mapResponseToQuery } from '@lib/map';
 import { SquarePlus } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent } from '@components/ui/card';
@@ -32,6 +34,7 @@ export function QueryBuilder(): ReactElement<FC> {
   const limitState = useLimitState((state: LimitState): LimitState => state);
   const limitAlertState = useLimitAlertState((state: LimitAlertState): LimitAlertState => state);
   const [platforms, setPlatforms] = useState<Array<Platform>>([]);
+  const [platformsError, setPlatformsError] = useState<string | null>(null);
   const [startDateError, setStartDateError] = useState<ValidationError | null>(null);
   const [endDateError, setEndDateError] = useState<ValidationError | null>(null);
   const [submitDisabled, setSubmitDisabled] = useState<boolean>(false);
@@ -131,14 +134,41 @@ export function QueryBuilder(): ReactElement<FC> {
     queriesState.push(query);
   };
 
-  useEffect((): void => {
-    const func = async (): Promise<void> => {
-      const response: APICollectionResponse<Platform> = await GETPlatforms();
-      setPlatforms(response.data);
-    };
+  // Failing silently here is what produced the empty "Select a platform" dropdown: the rejection
+  // was unhandled, so setPlatforms never ran and the placeholder stayed up with no error anywhere.
+  const loadPlatforms = useCallback(async (): Promise<void> => {
+    setPlatformsError(null);
 
-    func();
+    try {
+      const response: APICollectionResponse<Platform> = await GETPlatforms();
+
+      setPlatforms(response.data);
+
+    } catch (error) {
+      const unreachable: boolean = error instanceof ApiError && error.isUnreachable;
+
+      setPlatformsError(
+        unreachable
+          ? 'Could not reach the extractor service. It may still be starting up.'
+          : 'Could not load the list of platforms.'
+      );
+      toast.error('Could not load platforms', {
+        description: unreachable
+          ? 'The extractor service is not responding yet. Check the logs printed in the terminal if this persists.'
+          : 'Something went wrong loading the platform list.',
+        action: {
+          label: 'Retry',
+          onClick: (): void => {
+            void loadPlatforms();
+          }
+        }
+      });
+    }
   }, []);
+
+  useEffect((): void => {
+    void loadPlatforms();
+  }, [loadPlatforms]);
   useEffect((): void => {
     if (fetchingQueryState.query == null || fetchingQueryState.query.status !== QUERY_COMPLETE) return;
     setSubmitDisabled(false);
@@ -263,6 +293,20 @@ export function QueryBuilder(): ReactElement<FC> {
                       ))}
                     </SelectContent>
                   </Select>
+                  {platformsError != null && (
+                    <div className="flex items-center gap-2">
+                      <FieldError errors={[{ message: platformsError }]} />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={(): void => {
+                          void loadPlatforms();
+                        }}>
+                        Retry
+                      </Button>
+                    </div>
+                  )}
                 </Field>
               </FieldGroup>
               <FieldGroup>
