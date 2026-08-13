@@ -12,7 +12,9 @@ for module_name in sys.modules.keys():
   print(f"Found __mypyc module: {module_name}")
 
 
-datas = [('src', 'src')]
+# The alembic directory ships as data because migrations are loaded from disk by path at
+# runtime, not imported as modules. src/db/migrate.py resolves it under sys._MEIPASS.
+datas = [('src', 'src'), ('alembic', 'alembic')]
 binaries = []
 hiddenimports = [
   'src',
@@ -45,6 +47,12 @@ hiddenimports = [
   'sqlalchemy.dialects',
   'sqlalchemy.dialects.sqlite',
   'alembic',
+  'alembic.command',
+  'alembic.config',
+  'alembic.runtime.migration',
+  'alembic.script',
+  'alembic.ddl',
+  'alembic.ddl.sqlite',
   'anyio',
   'anyio._backends',
   'anyio._backends._asyncio',

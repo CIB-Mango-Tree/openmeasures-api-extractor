@@ -1,5 +1,5 @@
 from pandas import DataFrame
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import selectinload
 from requests import get, HTTPError, codes
 from pyventus.events import EventEmitter, EventLinker
 from asyncio import create_task, to_thread
@@ -337,7 +337,7 @@ class QueryService:
                 break
 
         query = self._query_repo.find_by_id(
-            query.id, [joinedload(Query.terms), joinedload(Query.requests)]
+            query.id, [selectinload(Query.terms), selectinload(Query.requests)]
         )
 
         return query
@@ -382,7 +382,7 @@ class QueryService:
 
             query = self._query_repo.update(query, True)
             query = self._query_repo.find_by_id(
-                query.id, [joinedload(Query.requests), joinedload(Query.terms)]
+                query.id, [selectinload(Query.requests), selectinload(Query.terms)]
             )
 
             if query is None:
@@ -456,7 +456,7 @@ class QueryService:
     def process_query(self, id: UUID) -> None:
         async def func() -> None:
             query = self._query_repo.find_by_id(
-                id, [joinedload(Query.terms), joinedload(Query.requests)]
+                id, [selectinload(Query.terms), selectinload(Query.requests)]
             )
 
             if query is None:
@@ -511,7 +511,7 @@ class QueryService:
     def get(self, include_requests: bool = False) -> list[Query]:
         if include_requests:
             return self._query_repo.find_all(
-                [joinedload(Query.terms), joinedload(Query.requests)]
+                [selectinload(Query.terms), selectinload(Query.requests)]
             )
 
         return self._query_repo.find_all()
@@ -519,7 +519,7 @@ class QueryService:
     def get_by_id(self, id: UUID, incldue_requests: bool = False) -> Query | None:
         if incldue_requests:
             return self._query_repo.find_by_id(
-                id, [joinedload(Query.terms), joinedload(Query.requests)]
+                id, [selectinload(Query.terms), selectinload(Query.requests)]
             )
 
         return self._query_repo.find_by_id(id)
@@ -527,7 +527,7 @@ class QueryService:
     def get_by_status(self, status: str, include_requests: bool = False) -> list[Query]:
         if include_requests:
             return self._query_repo.find_by_status(
-                status, [joinedload(Query.terms), joinedload(Query.requests)]
+                status, [selectinload(Query.terms), selectinload(Query.requests)]
             )
 
         return self._query_repo.find_by_status(status)
@@ -537,7 +537,7 @@ class QueryService:
     ) -> list[Query]:
         if incldue_requests:
             return self._query_repo.find_by_platform(
-                platform, [joinedload(Query.terms), joinedload(Query.requests)]
+                platform, [selectinload(Query.terms), selectinload(Query.requests)]
             )
 
         return self._query_repo.find_by_platform(platform)
@@ -576,7 +576,7 @@ class QueryService:
         self._query_term_repo.batch_create(terms)
 
         query = self._query_repo.find_by_id(
-            query.id, [joinedload(Query.terms), joinedload(Query.requests)]
+            query.id, [selectinload(Query.terms), selectinload(Query.requests)]
         )
 
         if query is None:

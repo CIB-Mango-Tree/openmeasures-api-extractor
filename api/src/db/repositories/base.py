@@ -1,6 +1,7 @@
 from sqlalchemy import (
     delete as sql_delete,
     exists as sql_exists,
+    inspect,
     update as sql_update,
     select,
 )
@@ -53,10 +54,19 @@ class BaseRepository[ModelType]:
                 pk_name = pk_columns[0].name
                 pk_value = getattr(model, pk_name)
                 update_data: dict[str, Any] = {}
+                # Deferred columns that were never loaded would raise DetachedInstanceError here
+                # (repositories close the session before returning). Skipping them also avoids
+                # rewriting a multi-MB blob on every pagination update.
+                unloaded = inspect(model).unloaded
 
                 for column in model_any.__table__.columns:
-                    if column.name != pk_name:
-                        update_data[column.name] = getattr(model, column.name)
+                    if column.name == pk_name or column.key in unloaded:
+                        continue
+
+                    update_data[column.name] = getattr(model, column.name)
+
+                if len(update_data) == 0:
+                    return model
 
                 session.execute(
                     sql_update(model_class)
@@ -104,12 +114,7 @@ class BaseRepository[ModelType]:
 
         try:
             return (
-                session.scalar(
-                    select(sql_exists(model).where(model.id == id)).execution_options(
-                        populate_existing=True
-                    )
-                )
-                or False
+                session.scalar(select(sql_exists(model).where(model.id == id))) or False
             )
 
         finally:

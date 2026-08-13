@@ -17,7 +17,6 @@ class QueryRequestRepository(BaseRepository[QueryRequest]):
                 session.scalars(
                     select(QueryRequest)
                     .where(QueryRequest.query_id == id)
-                    .execution_options(populate_existing=True)
                 )
             )
 

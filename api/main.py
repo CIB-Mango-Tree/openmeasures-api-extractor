@@ -1,5 +1,5 @@
 from collections.abc import AsyncGenerator
-from asyncio import Task, sleep, create_task, to_thread
+from asyncio import CancelledError, Task, sleep, create_task, to_thread
 from contextlib import asynccontextmanager
 from typing import Any
 from starlette.applications import Starlette
@@ -84,8 +84,14 @@ def main() -> None:
 
             try:
                 await task
-            except Exception:
+
+            # CancelledError derives from BaseException, not Exception, so catching Exception
+            # here let it escape and every shutdown ended in "Application shutdown failed".
+            except CancelledError:
                 pass
+
+            except Exception:
+                logger.error("error while shutting down refresh task", exc_info=True)
 
     # Each service is a single instance built above, so the endpoints read them straight off
     # app.state rather than through a DI container.

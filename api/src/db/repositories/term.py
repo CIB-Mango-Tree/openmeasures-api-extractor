@@ -17,7 +17,6 @@ class QueryTermRepository(BaseRepository[QueryTerm]):
                 session.scalars(
                     select(QueryTerm)
                     .where(QueryTerm.query_id == id)
-                    .execution_options(populate_existing=True)
                 ).all()
             )
 

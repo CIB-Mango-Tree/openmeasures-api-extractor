@@ -15,7 +15,7 @@ class QueryLimitRepository:
 
         try:
             return session.scalars(
-                select(QueryLimit).execution_options(populate_existing=True)
+                select(QueryLimit)
             ).first()
 
         finally:

@@ -1,9 +1,9 @@
 from ..db.repositories import QueryRepository
 from ..validator import ExportParamValidator
 from ..utils.export import FileExport
+from ..db.models import Query
 from ..utils.constants import EXCEL, JSON, CSV
 from io import BytesIO
-from sys import getsizeof
 
 
 class QueryExportService:
@@ -18,10 +18,10 @@ class QueryExportService:
         if query is None:
             return None
 
-        if getsizeof(query.processed_data) == 0:
-            return None
-
-        data_frame = query.from_processed_data_to_dataframe()
+        # Fetched as a single scalar column rather than off the model: processed_data is
+        # deferred and the query instance is detached by the time it gets here.
+        processed_data = self._query_repo.find_processed_data(data.id)
+        data_frame = Query.processed_data_to_dataframe(processed_data)
 
         if data_frame is None:
             return None
