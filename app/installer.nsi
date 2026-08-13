@@ -10,8 +10,9 @@
 !endif
 
 Name "Mango Tree API Extractor"
-; Must use the define: the workflow passes /DOUTPUT_FILE and then uploads app\dist\*, but makensis
-; runs from the repo root, so a hardcoded relative path wrote the installer outside app\dist.
+; NSIS resolves a relative OutFile against the directory holding this .nsi file (app\), NOT the
+; working directory makensis was invoked from. The default below is therefore app\dist\; the
+; workflow overrides it with an absolute path.
 OutFile "${OUTPUT_FILE}"
 ; Directory name must match the fallback in app/src/start.ts (and mirrors the macOS
 ; /Applications/mango-tree-extractor layout).

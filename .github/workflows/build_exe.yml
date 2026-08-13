@@ -23,6 +23,9 @@ on:
 jobs:
   build:
     strategy:
+      # Without this a single platform failure cancels the others, so one broken job hides the
+      # results for the rest. Each platform's outcome is independent here.
+      fail-fast: false
       matrix:
         include:
           - platform_name: Windows
@@ -202,7 +205,10 @@ jobs:
           mkdir $env:TEMP\cibmangotree\mango-tree-extractor
           move app\dist\mango-tree-api-extractor-${{matrix.artifact_name}}.exe $env:TEMP\cibmangotree\mango-tree-extractor\mango-tree-api-extractor.exe
           move api\dist\mango-tree-api-extractor-backend.exe $env:TEMP\cibmangotree\mango-tree-extractor\mango-tree-api-extractor-backend.exe
-          makensis /DINPUT_DIR="$env:TEMP\cibmangotree\mango-tree-extractor" /DOUTPUT_FILE="app\dist\mango-tree-api-extractor-windows-installer.exe" app\installer.nsi
+          New-Item -ItemType Directory -Force -Path app\dist | Out-Null
+          # OUTPUT_FILE must be absolute: NSIS resolves a relative OutFile against the directory
+          # holding the .nsi (app\), so a path like "app\dist\..." lands in app\app\dist\.
+          makensis /DINPUT_DIR="$env:TEMP\cibmangotree\mango-tree-extractor" /DOUTPUT_FILE="${{ github.workspace }}\app\dist\mango-tree-api-extractor-windows-installer.exe" app\installer.nsi
         shell: pwsh
 
       - name: Clean up macOS Artifacts
