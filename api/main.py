@@ -31,8 +31,9 @@ from src.endpoints import (
     PlatformsEndpoint,
 )
 from src.middleware import DiagnosticsMiddleware
+from src.desktop import run_desktop
 from src.spa import SPAStaticFiles, mount_path
-from src.settings import HOST, PORT, DATABASE_URL, DEBUG, SPA_DIR
+from src.settings import HOST, PORT, DATABASE_URL, DEBUG, HEADLESS, SPA_DIR
 from src.log import logger
 import src.utils.user_dir
 
@@ -123,7 +124,11 @@ def main() -> None:
     app.state.export_service = query_export_service
     app.state.websocket_service = websocket_service
 
-    run(app, host=HOST, port=PORT, use_colors=DEBUG, log_config=None)
+    if HEADLESS:
+        run(app, host=HOST, port=PORT, use_colors=DEBUG, log_config=None)
+        return
+
+    run_desktop(app)
 
 
 if __name__ == "__main__":

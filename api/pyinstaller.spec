@@ -102,23 +102,66 @@ a = Analysis(
 
 pyz = PYZ(a.pure)
 
+APP_NAME = 'CIB Mango Tree API Extractor'
+BUNDLE_ID = 'org.cibmangotree.api.extractor'
+
+# CI writes VERSION at the repo root before building; local builds may not have it.
+try:
+    with open('../VERSION') as version_file:
+        VERSION = version_file.read().strip() or '0.0.0'
+except OSError:
+    VERSION = '0.0.0'
+
+# onedir rather than onefile: a onefile binary re-extracts its whole archive to a temp directory
+# on every launch, which is what the old launcher's readiness polling existed to hide. Inside a
+# .app the files are just there.
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.datas,
     [],
-    name='mango-tree-api-extractor-backend',
+    exclude_binaries=True,
+    name='mango-tree-api-extractor',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
     upx_exclude=[],
-    runtime_tmpdir=None,
-    console=True,
+    # No terminal: the app is a window. Failures go to the diagnostics logs in the app data dir.
+    console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
+    # Windows only (macOS takes its icon from the BUNDLE below). This is what gives the exe and
+    # every shortcut NSIS creates a real icon.
+    icon='icon.ico',
     codesign_identity=os.environ.get('APPLE_APP_CERT_ID'),
     entitlements_file="../mango.entitlements",
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name='mango-tree-api-extractor',
+)
+
+app = BUNDLE(
+    coll,
+    name=f'{APP_NAME}.app',
+    icon='icon.icns',
+    bundle_identifier=BUNDLE_ID,
+    version=VERSION,
+    info_plist={
+        'CFBundleName': APP_NAME,
+        'CFBundleDisplayName': APP_NAME,
+        'CFBundleShortVersionString': VERSION,
+        'CFBundleVersion': VERSION,
+        'NSHighResolutionCapable': True,
+        # Nothing here is a document editor or a background agent; it is a normal windowed app.
+        'LSApplicationCategoryType': 'public.app-category.utilities',
+        'NSHumanReadableCopyright': 'CIB Mango Tree',
+    },
 )

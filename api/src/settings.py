@@ -20,6 +20,9 @@ def _spa_dir() -> Path:
 
 config = Config(path.join(get_app_data_dir(), ".env"))
 DEBUG = config("DEBUG", cast=bool, default=False)
+# Serve the API without opening a window, on a fixed port. Used for development against
+# `pnpm dev` and for automated testing; the packaged app always runs windowed.
+HEADLESS = config("HEADLESS", cast=bool, default=False)
 HOST = config("HOST", default="127.0.0.1")
 PORT = config("PORT", cast=int, default=8000)
 API_URL = config("API_URL", default="https://api.openmeasures.io/content")

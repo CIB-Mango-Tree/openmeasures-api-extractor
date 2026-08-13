@@ -7,11 +7,8 @@ on:
       APP_SPEC_PASS:
       DEV_APP_CERT:
       DEV_APP_CERT_PASS:
-      DEV_INST_CERT:
-      DEV_INST_CERT_PASS:
       APPLE_KEY_PASS:
       APPLE_APP_CERT_ID:
-      APPLE_INST_CERT_ID:
       TEAM_ID:
 
     inputs:
@@ -20,6 +17,7 @@ on:
         description: "Is this a release?"
         type: boolean
         required: false
+
 jobs:
   build:
     strategy:
@@ -32,18 +30,12 @@ jobs:
             artifact_name: windows
             os: windows-2022
             version_command: icacls "VERSION" /grant Everyone:F /T /C /Q
-            move_command: move app\dist\mango-tree-api-extractor.exe app\dist\mango-tree-api-extractor-windows.exe
-            list_command: dir app\dist
           - platform_name: MacOS (x86)
             artifact_name: macos-x86
             os: macos-15-intel
-            move_command: mv app/dist/mango-tree-api-extractor app/dist/mango-tree-api-extractor-macos-x86
-            list_command: ls -ll app/dist
           - platform_name: MacOS (arm64)
             artifact_name: macos-arm64
             os: macos-15
-            move_command: mv app/dist/mango-tree-api-extractor app/dist/mango-tree-api-extractor-macos-arm64
-            list_command: ls -ll app/dist
 
     name: Build ${{ matrix.platform_name }}
     runs-on: ${{ matrix.os }}
@@ -62,10 +54,8 @@ jobs:
           version: "0.9.8"
 
       - name: Install Python Dependencies
-        run: |
-          cd api
-          uv sync --locked --all-extras --dev
-          cd ../
+        run: uv sync --locked --all-extras --dev
+        working-directory: api
 
       - name: Setup Node.JS
         uses: actions/setup-node@v4
@@ -78,52 +68,16 @@ jobs:
           version: "10.20.x"
           run_install: false
 
-      - name: Install Node.JS Dependencies
-        run: |
-          cd site
-          pnpm install
-          cd ../
-          cd app
-          pnpm install
-          cd ../
+      - name: Install Frontend Dependencies
+        run: pnpm install
+        working-directory: site
 
-      - name: Install NSIS (windows)
-        if: runner.os == 'Windows'
-        run: choco install nsis -y
-
-      - name: Create macOS keychain
-        id: keychain
-        if: runner.os == 'macOS' && inputs.is_release
-        env:
-          APPLE_DEV_EMAIL: ${{secrets.APPLE_DEV_EMAIL}}
-          APP_SPEC_PASS: ${{secrets.APP_SPEC_PASS}}
-          APPLE_APP_CERTIFICATE: ${{secrets.DEV_APP_CERT}}
-          APPLE_APP_CERT_PASSWORD: ${{secrets.DEV_APP_CERT_PASS}}
-          APPLE_INST_CERTIFICATE: ${{secrets.DEV_INST_CERT}}
-          APPLE_INST_CERT_PASSWORD: ${{secrets.DEV_INST_CERT_PASS}}
-          APPLE_KEYCHAIN_PASS: ${{secrets.APPLE_KEY_PASS}}
-        run: |
-          echo "$APPLE_APP_CERTIFICATE" | base64 --decode > app_certificate.p12
-          echo "$APPLE_INST_CERTIFICATE" | base64 --decode > inst_certificate.p12
-          security create-keychain -p $APPLE_KEYCHAIN_PASS build.keychain
-          security default-keychain -s build.keychain
-          security set-keychain-settings -lut 21600 build.keychain
-          security unlock-keychain -p $APPLE_KEYCHAIN_PASS build.keychain
-          security import app_certificate.p12 -k build.keychain -P $APPLE_APP_CERT_PASSWORD -A
-          security import inst_certificate.p12 \
-          -k build.keychain \
-          -P "$APPLE_INST_CERT_PASSWORD" \
-          -A
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $APPLE_KEYCHAIN_PASS build.keychain
-          security find-identity -v -p codesigning -p macappstore
       - name: Print version string (for tag)
-        id: get_version_tag
         if: ${{ github.ref_type == 'tag' }}
         run: |
           python -c "with open('VERSION', 'w', encoding='utf-8') as f: f.write('${{ github.ref_name }}')"
 
       - name: Print version string (for branch)
-        id: get_version_branch
         if: ${{ github.ref_type != 'tag' }}
         run: |
           python -c "with open('VERSION', 'w', encoding='utf-8') as f: f.write('${{ github.ref_name }}-${{ github.sha }}')"
@@ -132,119 +86,114 @@ jobs:
         if: ${{ matrix.version_command }}
         run: ${{ matrix.version_command }}
 
-      - name: Build the Backend Executable
+      - name: Run Backend Tests
+        run: uv run pytest -q
+        working-directory: api
+
+      # Must precede the backend build: pyinstaller bundles site/dist into the application.
+      - name: Build the Frontend
+        run: pnpm build
+        working-directory: site
+
+      - name: Create macOS keychain
+        if: runner.os == 'macOS' && inputs.is_release
+        env:
+          APPLE_APP_CERTIFICATE: ${{ secrets.DEV_APP_CERT }}
+          APPLE_APP_CERT_PASSWORD: ${{ secrets.DEV_APP_CERT_PASS }}
+          APPLE_KEYCHAIN_PASS: ${{ secrets.APPLE_KEY_PASS }}
+        run: |
+          echo "$APPLE_APP_CERTIFICATE" | base64 --decode > app_certificate.p12
+          security create-keychain -p $APPLE_KEYCHAIN_PASS build.keychain
+          security default-keychain -s build.keychain
+          security set-keychain-settings -lut 21600 build.keychain
+          security unlock-keychain -p $APPLE_KEYCHAIN_PASS build.keychain
+          security import app_certificate.p12 -k build.keychain -P "$APPLE_APP_CERT_PASSWORD" -A
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $APPLE_KEYCHAIN_PASS build.keychain
+          security find-identity -v -p codesigning
+
+      - name: Build the Application
         env:
           APPLE_APP_CERT_ID: "${{ inputs.is_release && secrets.APPLE_APP_CERT_ID || '' }}"
-        run: |
-          cd api
-          uv run pyinstaller pyinstaller.spec
-          cd ../
+        run: uv run pyinstaller pyinstaller.spec --noconfirm
+        working-directory: api
 
-      - name: Build the Production Frontend Bundles
+      # PyInstaller signs the executable it produces, but not every nested dylib and .so. Those
+      # must be signed inner-out before the bundle itself, and `codesign --deep` is not a
+      # substitute -- Apple explicitly discourages it and notarization rejects the result.
+      - name: Sign the macOS app bundle
+        if: runner.os == 'macOS' && inputs.is_release
+        env:
+          APPLE_APP_CERT_ID: ${{ secrets.APPLE_APP_CERT_ID }}
+          APPLE_KEYCHAIN_PASS: ${{ secrets.APPLE_KEY_PASS }}
         run: |
-          cd site
-          pnpm build
-          cd ../
+          set -euo pipefail
+          APP="api/dist/CIB Mango Tree API Extractor.app"
+          security unlock-keychain -p "$APPLE_KEYCHAIN_PASS" build.keychain
+          find "$APP" -type f \( -name "*.so" -o -name "*.dylib" \) -print0 |
+            xargs -0 -I {} codesign --force --timestamp --options runtime --sign "$APPLE_APP_CERT_ID" {}
+          codesign --force --timestamp --options runtime \
+            --entitlements ./mango.entitlements --sign "$APPLE_APP_CERT_ID" "$APP"
+          codesign --verify --deep --strict --verbose=2 "$APP"
 
-      - name: Build Executable
-        # copy_assets.sh is a bash script; the Windows runner defaults to pwsh, which cannot run it.
+      - name: Create the macOS disk image
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          STAGE="$RUNNER_TEMP/dmg"
+          DMG="api/dist/mango-tree-api-extractor-${{ matrix.artifact_name }}.dmg"
+          mkdir -p "$STAGE"
+          cp -R "api/dist/CIB Mango Tree API Extractor.app" "$STAGE/"
+          # The Applications symlink is what makes the window a drag-to-install target.
+          ln -s /Applications "$STAGE/Applications"
+          hdiutil create -volname "CIB Mango Tree API Extractor" -srcfolder "$STAGE" \
+            -ov -format UDZO "$DMG"
+
+      - name: Sign, notarize and staple the disk image
+        if: runner.os == 'macOS' && inputs.is_release
+        env:
+          APPLE_APP_CERT_ID: ${{ secrets.APPLE_APP_CERT_ID }}
+          APPLE_KEYCHAIN_PASS: ${{ secrets.APPLE_KEY_PASS }}
+          APPLE_DEV_EMAIL: ${{ secrets.APPLE_DEV_EMAIL }}
+          APPLE_TEAM_ID: ${{ secrets.TEAM_ID }}
+          APP_SPEC_PASS: ${{ secrets.APP_SPEC_PASS }}
+        run: |
+          set -euo pipefail
+          DMG="api/dist/mango-tree-api-extractor-${{ matrix.artifact_name }}.dmg"
+          security unlock-keychain -p "$APPLE_KEYCHAIN_PASS" build.keychain
+          # Signed with the Application identity, not the Installer one: that is for .pkg files.
+          codesign --force --timestamp --sign "$APPLE_APP_CERT_ID" "$DMG"
+          xcrun notarytool submit "$DMG" --apple-id "$APPLE_DEV_EMAIL" \
+            --team-id "$APPLE_TEAM_ID" --password "$APP_SPEC_PASS" --wait
+          # Stapling is what lets Gatekeeper approve the app offline on first launch.
+          xcrun stapler staple "$DMG"
+          xcrun stapler validate "$DMG"
+
+      - name: Install NSIS
+        if: runner.os == 'Windows'
+        run: choco install nsis -y
+
+      - name: Build the Windows installer
+        if: runner.os == 'Windows'
         shell: bash
         run: |
-          cd app
-          ./copy_assets.sh
-          pnpm build
-          pnpm compile
-          cd ../
+          set -euo pipefail
+          # Absolute paths: NSIS resolves relative ones against the .nsi's own directory.
+          makensis \
+            //DINPUT_DIR="$(cygpath -w "$GITHUB_WORKSPACE/api/dist/mango-tree-api-extractor")" \
+            //DOUTPUT_FILE="$(cygpath -w "$GITHUB_WORKSPACE/api/dist/mango-tree-api-extractor-windows-installer.exe")" \
+            //DAPP_VERSION="$(cat VERSION)" \
+            installer.nsi
 
-      - name: Sign App Executable (macOS)
-        if: runner.os == 'macOS' && inputs.is_release
-        env:
-          APPLE_APP_CERT_ID: ${{secrets.APPLE_APP_CERT_ID}}
-          APPLE_KEYCHAIN_PASS: ${{secrets.APPLE_KEY_PASS}}
-        run: |
-          security unlock-keychain -p $APPLE_KEYCHAIN_PASS build.keychain
-          codesign --force --sign "$APPLE_APP_CERT_ID" --entitlements ./mango.entitlements --options runtime --timestamp app/dist/mango-tree-api-extractor
-          codesign --verify --verbose app/dist/mango-tree-api-extractor
+      - name: Remove the unpacked build directory
+        shell: bash
+        run: rm -rf "api/dist/mango-tree-api-extractor" "api/dist/CIB Mango Tree API Extractor.app"
 
-      - name: Rename the executable to include platform suffix
-        run: ${{ matrix.move_command }}
+      - name: Inspect artifacts before uploading
+        shell: bash
+        run: ls -l api/dist
 
-      - name: Create and sign mac package
-        if: runner.os == 'macOS' && inputs.is_release
-        env:
-          APPLE_INST_CERT_ID: ${{secrets.APPLE_INST_CERT_ID}}
-          APPLE_KEYCHAIN_PASS: ${{secrets.APPLE_KEY_PASS}}
-        run: |
-          mkdir -p /tmp/cibmangotree/
-          mkdir -p /tmp/cibmangotree/mango-tree-extractor/
-          mv api/dist/mango-tree-api-extractor-backend /tmp/cibmangotree/mango-tree-extractor/mango-tree-api-extractor-backend
-          mv app/dist/mango-tree-api-extractor-${{matrix.artifact_name}} /tmp/cibmangotree/mango-tree-extractor/mango-tree-api-extractor
-          chmod +x /tmp/cibmangotree/mango-tree-extractor/mango-tree-api-extractor
-          chmod +x /tmp/cibmangotree/mango-tree-extractor/mango-tree-api-extractor-backend
-          security unlock-keychain -p $APPLE_KEYCHAIN_PASS build.keychain
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$APPLE_KEYCHAIN_PASS" build.keychain
-          security find-identity -v -p codesigning build.keychain
-          pkgbuild --identifier "org.cibmangotree.api.extractor" --timestamp --root /tmp/cibmangotree --install-location /Applications "./app/dist/mango-tree-api-extractor-${{matrix.artifact_name}}-signed.pkg" --sign "$APPLE_INST_CERT_ID"
-
-      - name: Notarize Mac package
-        if: runner.os == 'macOS' && inputs.is_release
-        env:
-          APPLE_DEV_EMAIL: ${{secrets.APPLE_DEV_EMAIL}}
-          APPLE_TEAM_ID: ${{secrets.TEAM_ID}}
-          APP_SPEC_PASS: ${{secrets.APP_SPEC_PASS}}
-        run: xcrun notarytool submit app/dist/mango-tree-api-extractor-${{matrix.artifact_name}}-signed.pkg --apple-id $APPLE_DEV_EMAIL --team-id $APPLE_TEAM_ID --password $APP_SPEC_PASS --wait
-
-      - name: Staple the notarization ticket
-        if: runner.os == 'macOS' && inputs.is_release
-        run: xcrun stapler staple app/dist/mango-tree-api-extractor-${{matrix.artifact_name}}-signed.pkg
-
-      - name: Create Windows package
-        if: runner.os == 'Windows'
-        run: |
-          mkdir $env:TEMP\cibmangotree
-          mkdir $env:TEMP\cibmangotree\mango-tree-extractor
-          move app\dist\mango-tree-api-extractor-${{matrix.artifact_name}}.exe $env:TEMP\cibmangotree\mango-tree-extractor\mango-tree-api-extractor.exe
-          move api\dist\mango-tree-api-extractor-backend.exe $env:TEMP\cibmangotree\mango-tree-extractor\mango-tree-api-extractor-backend.exe
-          New-Item -ItemType Directory -Force -Path app\dist | Out-Null
-          # OUTPUT_FILE must be absolute: NSIS resolves a relative OutFile against the directory
-          # holding the .nsi (app\), so a path like "app\dist\..." lands in app\app\dist\.
-          makensis /DINPUT_DIR="$env:TEMP\cibmangotree\mango-tree-extractor" /DOUTPUT_FILE="${{ github.workspace }}\app\dist\mango-tree-api-extractor-windows-installer.exe" app\installer.nsi
-        shell: pwsh
-
-      - name: Clean up macOS Artifacts
-        if: runner.os == 'macOS' && inputs.is_release
-        run: |
-          rm -rf /tmp/cibmangotree
-          rm -rf app/dist/mango-tree-api-extractor-${{matrix.artifact_name}}
-          rm -rf app/dist/mango-tree-api-extractor-${{matrix.artifact_name}}.pkg
-          mv app/dist/mango-tree-api-extractor-${{matrix.artifact_name}}-signed.pkg app/dist/mango-tree-api-extractor-${{matrix.artifact_name}}.pkg
-
-      - name: Clean up Windows Artifacts
-        if: runner.os == 'Windows' && inputs.is_release
-        run: Remove-Item -Recurse -Force $env:TEMP\cibmangotree
-        shell: pwsh
-
-      - name: Inspect the dist/ directory before uploading artifacts
-        run: ${{ matrix.list_command }}
-
-      # Uploaded for non-release runs too, otherwise there is no way to get a build out of CI
-      # without going through the full signing + notarization chain.
-      # Kept as a single path so upload-artifact roots the zip at app/dist and the files land at
-      # the archive root: with several paths it roots at their common ancestor (the repo root)
-      # and the zip ends up containing app/dist/... instead of just the .pkg.
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: app/dist/*
-
-      # Separate artifact for the same reason. Only needed for non-release runs: nothing packages
-      # the backend there, so the launcher would be useless on its own. On release runs the
-      # installer already contains it and api/dist has been emptied.
-      - name: Upload backend binary (unsigned builds)
-        if: ${{ !inputs.is_release }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact_name }}-backend
-          if-no-files-found: warn
           path: api/dist/*
