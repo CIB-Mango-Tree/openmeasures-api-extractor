@@ -14,7 +14,9 @@ for module_name in sys.modules.keys():
 
 # The alembic directory ships as data because migrations are loaded from disk by path at
 # runtime, not imported as modules. src/db/migrate.py resolves it under sys._MEIPASS.
-datas = [('src', 'src'), ('alembic', 'alembic')]
+# ../site/dist is the built frontend, which this server now serves itself; src/settings.py
+# resolves it the same way.
+datas = [('src', 'src'), ('alembic', 'alembic'), ('../site/dist', 'dist')]
 binaries = []
 hiddenimports = [
   'src',

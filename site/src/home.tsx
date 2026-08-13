@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { createFileRoute } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { useQueries, useFetchingQueryState, useSelectedQuery } from '@state/query';
 import { useLimitState, useLimitAlertState } from '@state/limit';
@@ -24,12 +23,7 @@ import type { FetchingQueryState, QueriesState, SelectedQueryState } from '@stat
 import type { LimitState, LimitAlertState } from '@state/limit';
 import type { EventMessageData } from '@appTypes/event';
 
-export const Route = createFileRoute('/')({
-  ssr: true,
-  component: App,
-})
-
-function App(): ReactElement<FC> {
+export default function Home(): ReactElement<FC> {
   const queriesState = useQueries((state: QueriesState): QueriesState => state);
   const limitState = useLimitState((state: LimitState): LimitState => state);
   const limitAlertState = useLimitAlertState((state: LimitAlertState): LimitAlertState => state);

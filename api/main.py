@@ -3,7 +3,7 @@ from asyncio import CancelledError, Task, sleep, create_task, to_thread
 from contextlib import asynccontextmanager
 from typing import Any
 from starlette.applications import Starlette
-from starlette.routing import Route, WebSocketRoute
+from starlette.routing import Mount, Route, WebSocketRoute
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 from uvicorn import run
@@ -31,7 +31,8 @@ from src.endpoints import (
     PlatformsEndpoint,
 )
 from src.middleware import DiagnosticsMiddleware
-from src.settings import HOST, PORT, DATABASE_URL, DEBUG
+from src.spa import SPAStaticFiles, mount_path
+from src.settings import HOST, PORT, DATABASE_URL, DEBUG, SPA_DIR
 from src.log import logger
 import src.utils.user_dir
 
@@ -71,6 +72,13 @@ def main() -> None:
         Route("/api/platforms", endpoint=PlatformsEndpoint),
         Route("/api/health", endpoint=Home),
     ]
+
+    # Registered last and deliberately so: a Mount at "/" matches everything, so it would
+    # swallow the API routes if it came first.
+    spa_dir = mount_path(SPA_DIR)
+
+    if spa_dir is not None:
+        routes.append(Mount("/", app=SPAStaticFiles(directory=spa_dir, html=True)))
 
     @asynccontextmanager
     async def lifespan(_: Starlette) -> AsyncGenerator[Any, Any]:

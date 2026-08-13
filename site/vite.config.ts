@@ -1,12 +1,12 @@
 import { defineConfig } from 'vite'
-import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
 import viteTsConfigPaths from 'vite-tsconfig-paths'
 import tailwindcss from '@tailwindcss/vite'
-import { nitroV2Plugin } from '@tanstack/nitro-v2-vite-plugin'
 
 const config = defineConfig({
   server: {
+    // Development only. In production the Python server serves this build and the API from the
+    // same origin, so nothing is proxied.
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8000',
@@ -16,29 +16,10 @@ const config = defineConfig({
     },
   },
   plugins: [
-    nitroV2Plugin({
-      experimental: { websocket: true },
-      routeRules: {
-        '/api/**': { proxy: { to: 'http://127.0.0.1:8000/api/**' } },
-      },
-      plugins: ['./src/server/diagnostics-plugin.ts'],
-      handlers: [
-        {
-          route: '/api/ws/updates',
-          handler: './src/routes/api/ws/updates.ts',
-          lazy: true,
-        },
-      ],
-    }),
     viteTsConfigPaths({
       projects: ['./tsconfig.json'],
     }),
     tailwindcss(),
-    tanstackStart({
-      router: {
-        routeFileIgnorePattern: '^api/',
-      },
-    }),
     viteReact(),
   ],
 });
