@@ -228,14 +228,23 @@ jobs:
         run: ${{ matrix.list_command }}
 
       # Uploaded for non-release runs too, otherwise there is no way to get a build out of CI
-      # without going through the full signing + notarization chain. api/dist is included because
-      # on a non-release macOS run nothing packages the backend, and the launcher is useless
-      # without it; on release runs both dist dirs have already been emptied into the installer.
+      # without going through the full signing + notarization chain.
+      # Kept as a single path so upload-artifact roots the zip at app/dist and the files land at
+      # the archive root: with several paths it roots at their common ancestor (the repo root)
+      # and the zip ends up containing app/dist/... instead of just the .pkg.
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
+          path: app/dist/*
+
+      # Separate artifact for the same reason. Only needed for non-release runs: nothing packages
+      # the backend there, so the launcher would be useless on its own. On release runs the
+      # installer already contains it and api/dist has been emptied.
+      - name: Upload backend binary (unsigned builds)
+        if: ${{ !inputs.is_release }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}-backend
           if-no-files-found: warn
-          path: |
-            app/dist/*
-            api/dist/*
+          path: api/dist/*
