@@ -21,6 +21,8 @@ from src.services import (
     QueryExportService,
     WebSocketService,
 )
+from src.services.openmeasures import OpenMeasuresClient
+from src.services.steps import FetchStep, ParseStep, QuotaTracker
 from src.endpoints import (
     Home,
     QueriesEndpoint,
@@ -33,7 +35,7 @@ from src.endpoints import (
 from src.middleware import DiagnosticsMiddleware
 from src.desktop import run_desktop
 from src.spa import SPAStaticFiles, mount_path
-from src.settings import HOST, PORT, DATABASE_URL, DEBUG, HEADLESS, SPA_DIR
+from src.settings import API_URL, HOST, PORT, DATABASE_URL, DEBUG, HEADLESS, SPA_DIR
 from src.log import logger
 import src.utils.user_dir
 
@@ -56,9 +58,20 @@ def main() -> None:
     query_term_repo = QueryTermRepository(db)
     query_request_repo = QueryRequestRepository(db)
     query_limit_repo = QueryLimitRepository(db)
-    query_service = QueryService(
-        query_repo, query_term_repo, query_request_repo, query_limit_repo, emitter
-    )
+    # The extraction pipeline is composed here rather than inside QueryService, so the service
+    # depends only on the ProcessingStep interface. Order is the pipeline order.
+    api_client = OpenMeasuresClient(API_URL)
+    steps = [
+        FetchStep(
+            query_repo,
+            emitter,
+            query_request_repo,
+            QuotaTracker(query_limit_repo, emitter),
+            api_client,
+        ),
+        ParseStep(query_repo, emitter),
+    ]
+    query_service = QueryService(query_repo, query_term_repo, emitter, steps)
     query_limit_service = QueryLimitService(query_limit_repo, emitter)
     query_export_service = QueryExportService(query_repo)
     websocket_service = WebSocketService(query_repo)

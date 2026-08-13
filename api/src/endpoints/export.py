@@ -5,17 +5,7 @@ from pydantic import ValidationError
 from ..services import QueryExportService
 from ..validator import ExportParamValidator
 from ..utils.responses import error_response
-from ..utils.constants import (
-    OK,
-    EXCEL,
-    JSON,
-    CSV,
-    EXCEL_CONTENT_TYPE,
-    JSON_CONTENT_TYPE,
-    CSV_CONTENT_TYPE,
-    NOT_FOUND,
-    UNPROCESSABLE_CONTENT,
-)
+from ..utils.constants import OK, NOT_FOUND, UNPROCESSABLE_CONTENT
 
 
 class QueryExportEndpoint(HTTPEndpoint):
@@ -32,21 +22,12 @@ class QueryExportEndpoint(HTTPEndpoint):
                     {"message": "The query you are looking for cannot be found"},
                 )
 
-            content_type = ""
-
-            if params.format.value == EXCEL:
-                content_type = EXCEL_CONTENT_TYPE
-
-            if params.format.value == JSON:
-                content_type = JSON_CONTENT_TYPE
-
-            if params.format.value == CSV:
-                content_type = CSV_CONTENT_TYPE
-
+            # The content type comes from the exporter rather than being re-derived here; this
+            # endpoint used to repeat the same three-way branch as the service.
             return Response(
                 content=file_export.data,
                 status_code=OK,
-                media_type=content_type,
+                media_type=file_export.content_type,
                 headers={
                     "Content-Disposition": f'attachment; filename="{file_export.filename}"'
                 },

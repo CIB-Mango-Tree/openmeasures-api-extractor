@@ -1,18 +1,10 @@
-import polars as pl
 from sqlalchemy.orm import selectinload
-from requests import get, HTTPError, codes
 from pyventus.events import EventEmitter, EventLinker
-from asyncio import create_task, to_thread
+from asyncio import Task, create_task, to_thread
 from uuid import UUID
-from datetime import datetime
-from zoneinfo import ZoneInfo
-from ..db.models import Query, QueryTerm, QueryRequest
-from ..db.repositories import (
-    QueryRepository,
-    QueryTermRepository,
-    QueryRequestRepository,
-    QueryLimitRepository,
-)
+from typing import Sequence
+from ..db.models import Query, QueryTerm
+from ..db.repositories import QueryRepository, QueryTermRepository
 from ..validator import (
     CreateQueryValidator,
     UpdateQueryValidator,
@@ -20,421 +12,82 @@ from ..validator import (
     TermValidator,
     ParamValidator,
 )
-from ..serializers import QuerySerializer, QueryLimitSerializer
 from ..event import Event
-from ..storage import (
-    clean_frame,
-    delete_dataset,
-    drop_empty_columns,
-    extract_hits,
-    read_raw,
-    write_processed,
-    write_raw_page,
-)
+from ..serializers import QuerySerializer
 from ..utils.constants import (
+    QUERY_COMPLETE,
     FETCH_INCOMPLETE,
     FETCH_CONTINUE,
-    FETCH_IN_PROGRESS,
-    FETCH_UPDATE_PROGRESS,
-    CLEAN_IN_PROGRESS,
     CLEAN_CONTINUE,
-    CLEAN_INCOMPLETE,
-    PARSE_IN_PROGRESS,
     PARSE_CONTINUE,
     PARSE_INCOMPLETE,
-    QUERY_COMPLETE,
-    LIMIT_MAXED_OUT,
-    LIMIT_UPDATE,
-    PLATFORMS,
 )
+from ..storage import delete_dataset
+from .steps import Outcome, ProcessingStep, StepResult
 from ..log import logger
-from ..settings import API_URL
 
 
 class QueryService:
     _query_repo: QueryRepository
     _query_term_repo: QueryTermRepository
-    _query_request_repo: QueryRequestRepository
-    _query_limit_repo: QueryLimitRepository
     _emitter: EventEmitter
+    _steps: Sequence[ProcessingStep]
 
     def __init__(
         self,
         query_repo: QueryRepository,
         query_term_repo: QueryTermRepository,
-        query_request_repo: QueryRequestRepository,
-        query_limit_repo: QueryLimitRepository,
         emitter: EventEmitter,
+        steps: Sequence[ProcessingStep],
     ) -> None:
         self._emitter = emitter
         self._query_repo = query_repo
         self._query_term_repo = query_term_repo
-        self._query_request_repo = query_request_repo
-        self._query_limit_repo = query_limit_repo
+        # Injected rather than constructed here: the pipeline is composed in main.py, so the
+        # service depends only on the ProcessingStep interface. Order matters -- each step
+        # advances the status into the next one's range.
+        self._steps = steps
 
-    def _fetch_data(self, query: Query) -> Query | None:
-        if query.status == FETCH_CONTINUE:
-            logger.debug("Fetch is being continued...")
-            query.status = FETCH_IN_PROGRESS
+    def _next_status(
+        self, step: ProcessingStep, outcome: Outcome, remaining: Sequence[ProcessingStep]
+    ) -> str:
+        """Maps a step's outcome onto the status to persist and emit.
 
-            query.set_updated_at()
+        ADVANCE resolves against the pipeline order rather than anything the step names, so the
+        sequence of stages is expressed in one place. A step that advances with nothing after it
+        has finished the query.
+        """
+        if outcome is Outcome.PAUSE:
+            return step.incomplete_status
 
-            query = self._query_repo.update(query)
+        if outcome is Outcome.COMPLETE or not remaining:
+            return QUERY_COMPLETE
 
-            logger.debug(
-                "continued query has been updated - id: %s status: %s",
-                query.id,
-                query.status,
-            )
-            self._emitter.emit(
-                FETCH_UPDATE_PROGRESS,
-                payload=Event(data=QuerySerializer.convert_model_to_dict(query)),
-            )
+        return remaining[0].in_progress_status
 
-        if query.status == FETCH_INCOMPLETE:
-            return None
+    def _apply(
+        self, step: ProcessingStep, result: StepResult, remaining: Sequence[ProcessingStep]
+    ) -> Query:
+        query = result.query
+        status = self._next_status(step, result.outcome, remaining)
 
-        limit = self._query_limit_repo.find()
+        query.status = status
 
-        if limit is None:
-            return None
+        query.set_updated_at()
 
-        logger.debug(
-            "limit - count: %d last_fetch: %s",
-            limit.count,
-            limit.previous_request_date.isoformat()
-            if limit.previous_request_date is not None
-            else "None",
-        )
-        logger.debug(
-            "query info - PLATFORM: %s STATUS: %s TERM: %s",
-            query.platform,
-            query.status,
-            query.term,
-        )
+        query = self._query_repo.update(query, True)
 
-        localized_start_date = query.start_date.replace(
-            tzinfo=(ZoneInfo(query.timezone))
-        )
-        localized_end_date = query.end_date.replace(tzinfo=(ZoneInfo(query.timezone)))
-        params = {
-            "site": query.platform,
-            "term": query.term,
-            "since": query.current_timestamp.replace(
-                tzinfo=(ZoneInfo(query.timezone))
-            ).strftime("%Y-%m-%dT%H:%M:%S.%f")
-            if query.current_timestamp is not None
-            else localized_start_date.strftime("%Y-%m-%dT%H:%M:%S.%f"),
-            "until": localized_end_date.strftime("%Y-%m-%dT%H:%M:%S.%f"),
-            "limit": 10000,
-            "querytype": "boolean_content",
-        }
-        query_range = (localized_end_date - localized_start_date).total_seconds() / 3600
-
-        logger.debug("request params: %s", params)
-
-        while True:
-            try:
-                if (limit.limit_refresh_date is not None) and (
-                    datetime.now() > limit.limit_refresh_date
-                ):
-                    limit.reset()
-
-                    limit = self._query_limit_repo.update(limit)
-
-                    logger.debug("limit reset has been triggered.")
-                    self._emitter.emit(
-                        LIMIT_UPDATE,
-                        payload=Event(
-                            data=QueryLimitSerializer.convert_model_to_dict(limit)
-                        ),
-                    )
-
-                if limit.count == 0:
-                    query.status = FETCH_INCOMPLETE
-
-                    query.set_updated_at()
-
-                    self._query_repo.update(query, True)
-                    self._emitter.emit(
-                        LIMIT_MAXED_OUT,
-                        payload=Event(
-                            data=QueryLimitSerializer.convert_model_to_dict(limit),
-                            message="query limit has been maxed out until limit refresh",
-                        ),
-                    )
-                    self._emitter.emit(
-                        FETCH_INCOMPLETE,
-                        payload=Event(
-                            data=QuerySerializer.convert_model_to_dict(query),
-                            message="data fetch is imcomplete. query has been paused due to limit being exhausted",
-                        ),
-                    )
-
-                    break
-
-                response = get(API_URL, params=params)
-
-                response.raise_for_status()
-
-                data = response.json()
-                hits = data.get("hits", {}).get("hits", [])
-
-                if not hits and query.current_timestamp is None:
-                    query.percentage = 1.0
-                    query.status = QUERY_COMPLETE
-
-                    query.set_updated_at()
-
-                    query = self._query_repo.update(query, True)
-
-                    self._emitter.emit(
-                        QUERY_COMPLETE,
-                        payload=Event(
-                            data=QuerySerializer.convert_model_to_dict(query),
-                            message="query is now complete",
-                        ),
-                    )
-                    break
-
-                hit_length = len(hits)
-                request = QueryRequest(row_count=hit_length, query_id=query.id)
-
-                limit.decrement()
-                limit.set_timestamps()
-                limit.set_percentage()
-                # The row is created first so the page file can be named after its id, keeping
-                # the request row and its Parquet page 1:1 without a path column.
-                request = self._query_request_repo.create(request)
-
-                write_raw_page(
-                    query.id, request.id, extract_hits(query.platform, hits)
-                )
-
-                limit = self._query_limit_repo.update(limit)
-
-                logger.debug(
-                    "limit details after update - count: %d last_update: %s",
-                    limit.count,
-                    limit.limit_refresh_date.isoformat()
-                    if limit.limit_refresh_date is not None
-                    else "None",
-                )
-                self._emitter.emit(
-                    LIMIT_UPDATE,
-                    payload=Event(
-                        data=QueryLimitSerializer.convert_model_to_dict(limit)
-                    ),
-                )
-
-                query.rows_fetched += hit_length
-
-                query.increment_queries_used()
-
-                if hit_length < 10000:
-                    query.percentage = 1.0
-                    query.status = CLEAN_IN_PROGRESS
-
-                    query.set_updated_at()
-
-                    query = self._query_repo.update(query, True)
-
-                    self._emitter.emit(
-                        CLEAN_IN_PROGRESS,
-                        payload=Event(
-                            data=QuerySerializer.convert_model_to_dict(query),
-                            message="data fetch is now complete. data cleaning is now in progress",
-                        ),
-                    )
-                    break
-
-                timestamp_column = PLATFORMS.get(query.platform, {}).get(
-                    "created_at_column", None
-                )
-
-                if timestamp_column is None:
-                    raise ValueError(
-                        f"Unknown platform being used during _fetch_data function call platform: {query.platform}"
-                    )
-
-                last_created_at = hits[-1]["_source"].get(timestamp_column)
-
-                if not last_created_at:
-                    query.percentage = 1.0
-                    query.status = CLEAN_IN_PROGRESS
-
-                    query.set_updated_at()
-
-                    query = self._query_repo.update(query, True)
-
-                    self._emitter.emit(
-                        CLEAN_IN_PROGRESS,
-                        payload=Event(
-                            data=QuerySerializer.convert_model_to_dict(query),
-                            message="data fetch is now complete. data cleaning is now in progress",
-                        ),
-                    )
-                    break
-
-                last_created_at_datetime = datetime.fromisoformat(last_created_at)
-                fetch_range = (
-                    last_created_at_datetime.replace(tzinfo=(ZoneInfo(query.timezone)))
-                    - localized_start_date
-                ).total_seconds() / 3600
-                query.percentage = fetch_range / query_range
-                query.current_timestamp = last_created_at_datetime
-
-                if hit_length == 10000 and query.rows_fetched == 10000:
-                    query.status = FETCH_INCOMPLETE
-
-                    query.set_updated_at()
-
-                    query = self._query_repo.update(query, True)
-
-                    self._emitter.emit(
-                        FETCH_INCOMPLETE,
-                        payload=Event(
-                            data=QuerySerializer.convert_model_to_dict(query),
-                            message="data fetch is imcomplete. user must approve finishing the query to continue",
-                        ),
-                    )
-                    break
-
-                params["since"] = last_created_at
-
-                query.set_updated_at()
-
-                query = self._query_repo.update(query, True)
-
-                self._emitter.emit(
-                    FETCH_UPDATE_PROGRESS,
-                    payload=Event(
-                        data=QuerySerializer.convert_model_to_dict(query),
-                    ),
-                )
-
-            except HTTPError as err:
-                if err.response.status_code != codes.too_many_requests or query is None:
-                    logger.error(err, exc_info=True)
-                    break
-
-                query.status = FETCH_INCOMPLETE
-                limit.count = 0
-
-                limit.set_timestamps()
-                limit.set_percentage()
-                query.set_updated_at()
-                self._query_repo.update(query, True)
-
-                limit = self._query_limit_repo.update(limit)
-
-                self._emitter.emit(
-                    LIMIT_MAXED_OUT,
-                    payload=Event(
-                        data=QueryLimitSerializer.convert_model_to_dict(limit),
-                        message="query limit has been maxed out until limit refresh",
-                    ),
-                )
-                self._emitter.emit(
-                    FETCH_INCOMPLETE,
-                    payload=Event(
-                        data=QuerySerializer.convert_model_to_dict(query),
-                        message="data fetch is imcomplete. query has been paused due to limit being exhausted",
-                    ),
-                )
-                break
-
-            except Exception as e:
-                logger.error(e, exc_info=True)
-                break
-
-        query = self._query_repo.find_by_id(
-            query.id, [selectinload(Query.terms), selectinload(Query.requests)]
+        # The event name is the status: that is the WebSocket protocol the frontend switches on.
+        self._emitter.emit(
+            status,
+            payload=Event(
+                data=QuerySerializer.convert_model_to_dict(query), message=result.message
+            ),
         )
 
         return query
 
-    def _clean_data(self, query: Query) -> Query | None:
-        if query.status == CLEAN_CONTINUE:
-            query.status = CLEAN_IN_PROGRESS
-            query = self._query_repo.update(query, True)
-
-        if query.status == CLEAN_INCOMPLETE:
-            return None
-
-        try:
-            # Cleaning no longer produces a stored artifact. It used to write a near-complete
-            # duplicate of every hit into requests.cleaned_data; it is now a transform applied
-            # between the raw pages and the processed output in _parse_data.
-            query.status = PARSE_IN_PROGRESS
-            query.set_updated_at()
-
-            query = self._query_repo.update(query, True)
-            query = self._query_repo.find_by_id(
-                query.id, [selectinload(Query.requests), selectinload(Query.terms)]
-            )
-
-            if query is None:
-                return None
-
-            self._emitter.emit(
-                PARSE_IN_PROGRESS,
-                payload=Event(
-                    data=QuerySerializer.convert_model_to_dict(query),
-                    message="data cleaning is complete. parsing is now in progress",
-                ),
-            )
-
-            return query
-
-        except Exception as err:
-            logger.error(err, exc_info=True)
-            return None
-
-    def _parse_data(self, query: Query) -> Query | None:
-        logger.debug(f"_parse_data called for query {query.id}, status: {query.status}")
-
-        if query.status == PARSE_CONTINUE:
-            query.status = PARSE_IN_PROGRESS
-            query = self._query_repo.update(query, True)
-
-        if query.status == PARSE_INCOMPLETE:
-            return None
-
-        try:
-            # Raw pages already carry the declared columns for the platform, so parsing is now
-            # read -> clean -> drop unused columns -> write, with no schema inference involved.
-            request_ids = [request.id for request in query.requests]
-            data_frame: pl.DataFrame | None = read_raw(query.id, request_ids)
-
-            if data_frame is None:
-                raise ValueError(f"no raw dataset found for query {query.id}")
-
-            logger.debug("read %d raw rows for query %s", data_frame.height, query.id)
-
-            data_frame = drop_empty_columns(clean_frame(query.platform, data_frame))
-
-            write_processed(query.id, data_frame)
-            query.status = QUERY_COMPLETE
-            query.set_updated_at()
-
-            query = self._query_repo.update(query, True)
-
-            self._emitter.emit(
-                QUERY_COMPLETE,
-                payload=Event(
-                    data=QuerySerializer.convert_model_to_dict(query),
-                    message="query is now complete",
-                ),
-            )
-
-            return query
-
-        except Exception as err:
-            logger.error(err, exc_info=True)
-            return None
-
-    def process_query(self, id: UUID) -> None:
+    def process_query(self, id: UUID) -> Task[None]:
         async def func() -> None:
             query = self._query_repo.find_by_id(
                 id, [selectinload(Query.terms), selectinload(Query.requests)]
@@ -443,36 +96,35 @@ class QueryService:
             if query is None:
                 return
 
-            if query.status in [FETCH_CONTINUE, FETCH_IN_PROGRESS]:
+            for index, step in enumerate(self._steps):
+                if not step.handles(query.status):
+                    continue
+
                 logger.debug(
-                    "data fetch for query is starting - id: %s status: %s",
+                    "%s starting for query %s (status: %s)",
+                    type(step).__name__,
                     query.id,
                     query.status,
                 )
-                query = await to_thread(self._fetch_data, query)
 
-                if query is None:
+                # Steps are blocking (HTTP, SQLAlchemy, Parquet), so each runs on a worker
+                # thread. The transition runs there too: it writes to the database, and emitting
+                # from the loop thread would block it.
+                result = await to_thread(step.run, query)
+
+                if result is None:
                     return
 
-                logger.debug("data fetch for query: %s is complete", query.id)
+                remaining = self._steps[index + 1 :]
+                query = await to_thread(self._apply, step, result, remaining)
 
-            if query.status in [CLEAN_CONTINUE, CLEAN_IN_PROGRESS]:
-                query = await to_thread(self._clean_data, query)
-
-                if query is None:
-                    return
-
-            if query.status in [PARSE_CONTINUE, PARSE_IN_PROGRESS]:
-                query = await to_thread(self._parse_data, query)
-
-                if query is None:
+                # PAUSE and COMPLETE both end the pipeline for this query.
+                if result.outcome is not Outcome.ADVANCE:
                     return
 
             logger.debug(
-                "applicable processing tasks for query: %s are complete", query.id
-            )
-            logger.debug(
-                "Query - PLATFORM: %s STATUS: %s PROGRESS: %d ROWS FETCHED: %d",
+                "query %s finished - PLATFORM: %s STATUS: %s PROGRESS: %s ROWS FETCHED: %d",
+                query.id,
                 query.platform,
                 query.status,
                 query.percentage,
@@ -480,14 +132,27 @@ class QueryService:
             )
 
         task = create_task(func())
+        cancel_event = f"CANCEL:{str(id)}"
 
-        @EventLinker.once(f"CANCEL:{str(id)}")
+        @EventLinker.once(cancel_event)
         def handle_task_cancel() -> None:
             if task.done():
                 return
 
             logger.debug("Cancelling processing task for query: %s", str(id))
             task.cancel()
+
+        # EventLinker is a process-global registry and `once` only unregisters when it fires. A
+        # query that completes normally would otherwise leave its handler behind forever, one per
+        # query, for the lifetime of the application.
+        def discard_cancel_handler(_: Task[None]) -> None:
+            EventLinker.remove(cancel_event, handle_task_cancel)
+
+        task.add_done_callback(discard_cancel_handler)
+
+        # Returned so callers (and tests) can await completion; the endpoints ignore it and let
+        # processing continue in the background.
+        return task
 
     def get(self, include_requests: bool = False) -> list[Query]:
         if include_requests:
@@ -576,10 +241,11 @@ class QueryService:
         if query.status == FETCH_INCOMPLETE and data.status == FETCH_CONTINUE:
             query.status = FETCH_CONTINUE
 
-        if (query.status == CLEAN_INCOMPLETE and data.status == CLEAN_CONTINUE) or (
-            query.status == FETCH_INCOMPLETE and data.status == CLEAN_CONTINUE
-        ):
-            query.status = CLEAN_CONTINUE
+        # CLEAN:CONTINUE is still accepted from the frontend but normalized onto the parse stage:
+        # cleaning is a transform inside ParseStep, not a stage of its own. The former
+        # CLEAN:INCOMPLETE branch is gone -- nothing ever assigned that status.
+        if query.status == FETCH_INCOMPLETE and data.status == CLEAN_CONTINUE:
+            query.status = PARSE_CONTINUE
 
         if query.status == PARSE_INCOMPLETE and data.status == PARSE_CONTINUE:
             query.status = PARSE_CONTINUE

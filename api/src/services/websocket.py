@@ -5,6 +5,8 @@ from asyncio import (
     run_coroutine_threadsafe,
     AbstractEventLoop,
 )
+from concurrent.futures import Future
+from typing import Any, Coroutine
 from uuid import UUID
 from ..db.repositories import QueryRepository
 from ..websocket import WebSocketConnection, ConnectionStore
@@ -142,6 +144,31 @@ class WebSocketService:
 
         return connection
 
+    def _dispatch(self, coroutine: Coroutine[Any, Any, None]) -> None:
+        """Hands a send off to the event loop without waiting for it.
+
+        These are called from the extraction worker thread. Blocking on .result() meant every
+        progress tick stalled the fetch loop for a full event-loop round trip, with no timeout,
+        and nothing consumes the return value.
+        """
+        if self._loop is None:
+            return
+
+        try:
+            future = run_coroutine_threadsafe(coroutine, self._loop)
+
+        except Exception as err:
+            logger.error(err, exc_info=True)
+            return
+
+        def report(completed: Future[None]) -> None:
+            error = completed.exception()
+
+            if error is not None:
+                logger.error("websocket send failed", exc_info=error)
+
+        future.add_done_callback(report)
+
     def broadcast(self, data: Any) -> None:
         if self._loop is None:
             return
@@ -157,13 +184,7 @@ class WebSocketService:
                 return_exceptions=True,
             )
 
-        try:
-            routine = run_coroutine_threadsafe(func(), self._loop)
-
-            routine.result()
-
-        except Exception as err:
-            logger.error(err, exc_info=True)
+        self._dispatch(func())
 
     def send(self, id: str, data: Any) -> None:
         if self._loop is None:
@@ -177,13 +198,7 @@ class WebSocketService:
         async def func() -> None:
             await connection.socket.send_json(data)
 
-        try:
-            routine = run_coroutine_threadsafe(func(), self._loop)
-
-            routine.result()
-
-        except Exception as err:
-            logger.error(err, exc_info=True)
+        self._dispatch(func())
 
     def send_by_topic(self, topic: str, data: Any) -> None:
         if self._loop is None:
@@ -206,10 +221,4 @@ class WebSocketService:
 
         logger.debug("About to create task")
 
-        try:
-            routine = run_coroutine_threadsafe(func(), self._loop)
-
-            routine.result()
-
-        except Exception as err:
-            logger.error(err, exc_info=True)
+        self._dispatch(func())
