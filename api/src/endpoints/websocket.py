@@ -1,7 +1,6 @@
 from starlette.endpoints import WebSocketEndpoint
 from starlette.websockets import WebSocket
 from pydantic import ValidationError
-from lagom import injectable
 from asyncio import get_running_loop
 from json import loads
 from ..services import WebSocketService
@@ -13,9 +12,8 @@ from typing import Any
 class UpdateStreamEndpoint(WebSocketEndpoint):
     encoding = "json"
 
-    async def on_connect(
-        self, websocket: WebSocket, websocket_service: WebSocketService = injectable
-    ) -> None:
+    async def on_connect(self, websocket: WebSocket) -> None:
+        websocket_service: WebSocketService = websocket.app.state.websocket_service
         connection = websocket_service.create(websocket)
 
         if not websocket_service.is_event_loop_set():
@@ -25,13 +23,9 @@ class UpdateStreamEndpoint(WebSocketEndpoint):
         await connection.socket.accept()
         await connection.socket.send_json({"message": "Connected!!!"})
 
-    async def on_receive(
-        self,
-        websocket: WebSocket,
-        data: Any,
-        websocekt_service: WebSocketService = injectable,
-    ) -> None:
-        connection = websocekt_service.get_by_id(websocket.state.id)
+    async def on_receive(self, websocket: WebSocket, data: Any) -> None:
+        websocket_service: WebSocketService = websocket.app.state.websocket_service
+        connection = websocket_service.get_by_id(websocket.state.id)
 
         if connection is None:
             return
@@ -52,7 +46,7 @@ class UpdateStreamEndpoint(WebSocketEndpoint):
                     )
                     return
 
-                connection = websocekt_service.subscribe(
+                connection = websocket_service.subscribe(
                     connection.id, validator_data.topic
                 )
 
@@ -70,7 +64,7 @@ class UpdateStreamEndpoint(WebSocketEndpoint):
                 return
 
             if validator_data.action.value == UNSUBSCRIBE:
-                connection = websocekt_service.unsubscribe(connection.id, topic_str)
+                connection = websocket_service.unsubscribe(connection.id, topic_str)
 
                 if connection is None:
                     return
@@ -99,12 +93,8 @@ class UpdateStreamEndpoint(WebSocketEndpoint):
                 }
             )
 
-    async def on_disconnect(
-        self,
-        websocket: WebSocket,
-        close_code: int,
-        websocket_service: WebSocketService = injectable,
-    ) -> None:
+    async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
+        websocket_service: WebSocketService = websocket.app.state.websocket_service
         connection = websocket_service.get_by_id(websocket.state.id)
 
         if connection is None:

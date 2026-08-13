@@ -1,7 +1,6 @@
 from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-from lagom import injectable
 from pydantic import ValidationError
 from ..services import QueryService
 from ..serializers import QuerySerializer
@@ -16,18 +15,17 @@ from ..utils.constants import OK, CREATED, NOT_FOUND, UNPROCESSABLE_CONTENT
 
 
 class QueriesEndpoint(HTTPEndpoint):
-    async def get(
-        self, _: Request, query_service: QueryService = injectable
-    ) -> JSONResponse:
+    async def get(self, request: Request) -> JSONResponse:
+        query_service: QueryService = request.app.state.query_service
         queries = query_service.get()
 
         return OK_collection_response(
             OK, QuerySerializer.convert_models_to_dict(queries)
         )
 
-    async def post(
-        self, request: Request, query_service: QueryService = injectable
-    ) -> JSONResponse:
+    async def post(self, request: Request) -> JSONResponse:
+        query_service: QueryService = request.app.state.query_service
+
         try:
             body = await request.json()
             validator_data = CreateQueryValidator.model_validate(body)
@@ -43,9 +41,9 @@ class QueriesEndpoint(HTTPEndpoint):
                 ),
             )
 
-    async def delete(
-        self, request: Request, query_service: QueryService = injectable
-    ) -> JSONResponse:
+    async def delete(self, request: Request) -> JSONResponse:
+        query_service: QueryService = request.app.state.query_service
+
         try:
             body = await request.json()
             validator_data = DeleteQueriesValidator.model_validate(body)
@@ -64,9 +62,9 @@ class QueriesEndpoint(HTTPEndpoint):
 
 
 class QueryEndpoint(HTTPEndpoint):
-    async def get(
-        self, request: Request, query_service: QueryService = injectable
-    ) -> JSONResponse:
+    async def get(self, request: Request) -> JSONResponse:
+        query_service: QueryService = request.app.state.query_service
+
         try:
             param_validator = ParamValidator.model_validate(request.path_params)
             query = query_service.get_by_id(param_validator.id)
@@ -86,9 +84,9 @@ class QueryEndpoint(HTTPEndpoint):
                 ),
             )
 
-    async def patch(
-        self, request: Request, query_service: QueryService = injectable
-    ) -> JSONResponse:
+    async def patch(self, request: Request) -> JSONResponse:
+        query_service: QueryService = request.app.state.query_service
+
         try:
             param_validator = ParamValidator.model_validate(request.path_params)
             query = query_service.get_by_id(param_validator.id)
@@ -112,9 +110,9 @@ class QueryEndpoint(HTTPEndpoint):
                 ),
             )
 
-    async def delete(
-        self, request: Request, query_service: QueryService = injectable
-    ) -> JSONResponse:
+    async def delete(self, request: Request) -> JSONResponse:
+        query_service: QueryService = request.app.state.query_service
+
         try:
             param_validator = ParamValidator.model_validate(request.path_params)
             query = query_service.get_by_id(param_validator.id)

@@ -3,13 +3,11 @@ from asyncio import Task, sleep, create_task, to_thread
 from contextlib import asynccontextmanager
 from typing import Any
 from starlette.applications import Starlette
-from starlette.routing import Route
+from starlette.routing import Route, WebSocketRoute
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 from uvicorn import run
 from pyventus.events import AsyncIOEventEmitter
-from lagom import Container
-from lagom.integrations.starlette import StarletteIntegration
 from src.db.connection import init_DB
 from src.db.repositories import (
     QueryRepository,
@@ -62,26 +60,14 @@ def main() -> None:
     query_limit_service = QueryLimitService(query_limit_repo, emitter)
     query_export_service = QueryExportService(query_repo)
     websocket_service = WebSocketService(query_repo)
-    query_container = Container()
-    query_limit_container = Container()
-    query_export_container = Container()
-    websocket_container = Container()
-    query_container[QueryService] = query_service
-    query_limit_container[QueryLimitService] = query_limit_service
-    query_export_container[QueryExportService] = query_export_service
-    websocket_container[WebSocketService] = websocket_service
-    query_router = StarletteIntegration(query_container)
-    query_limit_router = StarletteIntegration(query_limit_container)
-    query_export_router = StarletteIntegration(query_export_container)
-    websocket_router = StarletteIntegration(websocket_container)
     routes = [
-        query_router.route("/api/queries", endpoint=QueriesEndpoint),
-        query_router.route("/api/queries/{id:uuid}", endpoint=QueryEndpoint),
-        query_export_router.route(
+        Route("/api/queries", endpoint=QueriesEndpoint),
+        Route("/api/queries/{id:uuid}", endpoint=QueryEndpoint),
+        Route(
             "/api/queries/{id:uuid}/download/{format:str}", endpoint=QueryExportEndpoint
         ),
-        query_limit_router.route("/api/limit", endpoint=QueryLimitEndpoint),
-        websocket_router.ws_route("/api/ws/updates", endpoint=UpdateStreamEndpoint),
+        Route("/api/limit", endpoint=QueryLimitEndpoint),
+        WebSocketRoute("/api/ws/updates", endpoint=UpdateStreamEndpoint),
         Route("/api/platforms", endpoint=PlatformsEndpoint),
         Route("/api/health", endpoint=Home),
     ]
@@ -101,6 +87,8 @@ def main() -> None:
             except Exception:
                 pass
 
+    # Each service is a single instance built above, so the endpoints read them straight off
+    # app.state rather than through a DI container.
     app = Starlette(
         debug=DEBUG,
         routes=routes,
@@ -115,6 +103,12 @@ def main() -> None:
             )
         ],
     )
+
+    app.state.query_service = query_service
+    app.state.limit_service = query_limit_service
+    app.state.export_service = query_export_service
+    app.state.websocket_service = websocket_service
+
     run(app, host=HOST, port=PORT, use_colors=DEBUG, log_config=None)
 
 

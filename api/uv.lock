@@ -66,7 +66,6 @@ dependencies = [
     { name = "click" },
     { name = "h11" },
     { name = "idna" },
-    { name = "lagom" },
     { name = "pandas" },
     { name = "pandas-stubs" },
     { name = "platformdirs" },
@@ -92,7 +91,6 @@ requires-dist = [
     { name = "click", specifier = "==8.2.1" },
     { name = "h11", specifier = "==0.16.0" },
     { name = "idna", specifier = "==3.15" },
-    { name = "lagom", specifier = ">=2.7.7" },
     { name = "pandas", specifier = ">=2.3.2" },
     { name = "pandas-stubs", specifier = ">=2.3.2.250926" },
     { name = "platformdirs", specifier = ">=4.5.0" },
@@ -288,29 +286,11 @@ wheels = [
 ]
 
 [[package]]
-name = "lagom"
-version = "2.7.7"
-source = { registry = "https://pypi.org/simple" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/22/a3/8b40307154c1927bafba5af32c116a64e39d6e711172a645df73731c1fcf/lagom-2.7.7-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:57031a288cbd549fc26b4107f1f1fabba1f01632d20de197389ec0948b2d0726", size = 143994, upload-time = "2025-07-16T11:18:30.975Z" },
-    { url = "https://files.pythonhosted.org/packages/f8/d5/e777b855cc18efaac122f4c399792adb6f9f0c3d430f7fd019e6d2a9c8f9/lagom-2.7.7-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:abeab675e4d3d505254b6eeb9665aa90e79e60f4adc5cc05c2082b0ac899bad4", size = 264618, upload-time = "2025-07-16T11:21:00.266Z" },
-    { url = "https://files.pythonhosted.org/packages/28/7a/150954b020b117bff552bef7eb8bc131d312c405e3a092c952882a4d12d6/lagom-2.7.7-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:e3b54f06ff474a2c82e02c3fbc17a5cd38581560885933c56422d2524a533079", size = 266208, upload-time = "2025-07-16T11:21:01.477Z" },
-    { url = "https://files.pythonhosted.org/packages/48/be/4c991a640589549ea656a4f0d66331681ff61e8717f061801fd038603db8/lagom-2.7.7-cp312-cp312-win32.whl", hash = "sha256:e336733b7fad9397081e736ca3dc3e35b70cc8df11f63df38053921760acf6a7", size = 109315, upload-time = "2025-07-16T11:25:39.632Z" },
-    { url = "https://files.pythonhosted.org/packages/85/fe/c49537b53a593d18c17c7576cbd844dddb258151373df6f8382bd02a79c4/lagom-2.7.7-cp312-cp312-win_amd64.whl", hash = "sha256:45874bcb18f08ad92d2356d19ca7c374658b51e68e91ce25885396ee832104b7", size = 119548, upload-time = "2025-07-16T11:25:40.411Z" },
-    { url = "https://files.pythonhosted.org/packages/6d/c8/97b6a333d27c87a5c0973e40ed2cc51d0020166e940b48113b5a32fa52e1/lagom-2.7.7-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:36961c52a8debcc122ebc5caece4bdca7cf6c1cdf07159e17b84913259b386bd", size = 143912, upload-time = "2025-07-16T11:18:31.78Z" },
-    { url = "https://files.pythonhosted.org/packages/87/ce/13bc7a3175d22abbf31729e0fc13a98a15e91bda3a750ac1fe8826edb242/lagom-2.7.7-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a446273396437774a3defff5a9baa4e0d88c9bad4e9cf318d98748005f5a6c57", size = 263228, upload-time = "2025-07-16T11:21:05.066Z" },
-    { url = "https://files.pythonhosted.org/packages/f0/ef/032329df600bf41fa030b88898425643ae3965e747bf39e34123a05b2ea5/lagom-2.7.7-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:0d8f734641a75c4c7ce632f60fd6a65850a3a55d02938acc6d9348812741a167", size = 264973, upload-time = "2025-07-16T11:21:06.189Z" },
-    { url = "https://files.pythonhosted.org/packages/3c/49/b50df0a63035a17e63cdccb14d2274acb0dda39a0f760c9e1679676fa570/lagom-2.7.7-cp313-cp313-win32.whl", hash = "sha256:348c324cac8ad79d670c38b8d1b4de36280032963abd5127e9abce5f396583f5", size = 109265, upload-time = "2025-07-16T11:25:41.439Z" },
-    { url = "https://files.pythonhosted.org/packages/6d/78/a3901039ee8a3a490836234598aefa62f60a051d6418ff2603435b9df4e7/lagom-2.7.7-cp313-cp313-win_amd64.whl", hash = "sha256:f3ec6675496579c67057884b6b33cef56eb7867b6a98d500bbbe70cd7071f921", size = 119608, upload-time = "2025-07-16T11:25:42.54Z" },
-    { url = "https://files.pythonhosted.org/packages/42/f1/300cdc600fd5a0a3e829db532d23758b0c4d4ccf031c1fec91245aded366/lagom-2.7.7-py3-none-any.whl", hash = "sha256:704b52f5b028eec84344fb14164c24cec4853c1b699b2cc008b356a7ebc9c8a9", size = 36924, upload-time = "2025-07-16T11:10:24.036Z" },
-]
-
-[[package]]
 name = "macholib"
 version = "1.16.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "altgraph", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
+    { name = "altgraph" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/10/2f/97589876ea967487978071c9042518d28b958d87b17dceb7cdc1d881f963/macholib-1.16.4.tar.gz", hash = "sha256:f408c93ab2e995cd2c46e34fe328b130404be143469e41bc366c807448979362", size = 59427, upload-time = "2025-11-22T08:28:38.373Z" }
 wheels = [
