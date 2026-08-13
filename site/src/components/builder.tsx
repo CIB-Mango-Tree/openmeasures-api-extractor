@@ -11,7 +11,7 @@ import { SquarePlus } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent } from '@components/ui/card';
 import { Field, FieldLabel, FieldSet, FieldGroup, FieldError } from '@components/ui/field';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select';
-import { Combobox, ComboboxCollection, ComboboxContent, ComboboxEmpty, ComboboxGroup, ComboboxInput, ComboboxItem, ComboboxLabel, ComboboxList } from '@components/ui/combobox';
+import { Combobox, ComboboxCollection, ComboboxContent, ComboboxEmpty, ComboboxGroup, ComboboxInput, ComboboxItem, ComboboxLabel, ComboboxList, ComboboxTrigger, ComboboxValue } from '@components/ui/combobox';
 import { TIMEZONE_GROUPS, TIMEZONES } from '@constants/timezones';
 import { Button } from '@components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@components/ui/tooltip';
@@ -212,8 +212,17 @@ export function QueryBuilder(): ReactElement<FC> {
                     onValueChange={(value: Timezone | null): void => setTimezone(value?.value ?? '')}
                     itemToStringLabel={(item: Timezone): string => item.label}
                     disabled={submitDisabled}>
-                    <ComboboxInput placeholder="Select a timezone" />
+                    {/* Trigger shows the current selection; the search box lives inside the popup
+                        so the field reads as a select until you open it. */}
+                    <ComboboxTrigger
+                      disabled={submitDisabled}
+                      render={<Button variant="outline" className="w-full justify-between font-normal" />}>
+                      <ComboboxValue>
+                        {(value: Timezone | null): string => value?.label ?? 'Select a timezone'}
+                      </ComboboxValue>
+                    </ComboboxTrigger>
                     <ComboboxContent>
+                      <ComboboxInput placeholder="Search time zones..." showTrigger={false} />
                       <ComboboxEmpty>No matching time zone.</ComboboxEmpty>
                       <ComboboxList>
                         <ComboboxCollection>

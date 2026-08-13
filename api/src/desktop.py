@@ -71,19 +71,28 @@ def run_desktop(app: Any) -> None:
     """Runs the app in a native webview window, serving on an ephemeral loopback port."""
     import webview
 
+    from .desktop_api import DesktopApi
+
     server, thread, port = serve_in_background(app, 0)
     url = f"http://{HOST}:{port}"
 
     logger.info("serving desktop UI at %s", url)
 
+    # Exposed to the page as window.pywebview.api; the webview cannot save downloads on its own.
+    api = DesktopApi(app.state.export_service)
+
     try:
-        webview.create_window(
+        window = webview.create_window(
             WINDOW_TITLE,
             url,
+            js_api=api,
             width=WINDOW_WIDTH,
             height=WINDOW_HEIGHT,
             min_size=(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT),
         )
+
+        api.bind(window)
+
         # Blocks on the main thread until the window is closed.
         webview.start()
 
