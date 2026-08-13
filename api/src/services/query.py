@@ -1,4 +1,4 @@
-from pandas import DataFrame
+import polars as pl
 from sqlalchemy.orm import selectinload
 from requests import get, HTTPError, codes
 from pyventus.events import EventEmitter, EventLinker
@@ -22,7 +22,15 @@ from ..validator import (
 )
 from ..serializers import QuerySerializer, QueryLimitSerializer
 from ..event import Event
-from ..utils.sanitize import clean_text
+from ..storage import (
+    clean_frame,
+    delete_dataset,
+    drop_empty_columns,
+    extract_hits,
+    read_raw,
+    write_processed,
+    write_raw_page,
+)
 from ..utils.constants import (
     FETCH_INCOMPLETE,
     FETCH_CONTINUE,
@@ -190,14 +198,18 @@ class QueryService:
                     break
 
                 hit_length = len(hits)
-                request = QueryRequest(
-                    row_count=hit_length, data=hits, query_id=query.id
-                )
+                request = QueryRequest(row_count=hit_length, query_id=query.id)
 
                 limit.decrement()
                 limit.set_timestamps()
                 limit.set_percentage()
-                self._query_request_repo.create(request)
+                # The row is created first so the page file can be named after its id, keeping
+                # the request row and its Parquet page 1:1 without a path column.
+                request = self._query_request_repo.create(request)
+
+                write_raw_page(
+                    query.id, request.id, extract_hits(query.platform, hits)
+                )
 
                 limit = self._query_limit_repo.update(limit)
 
@@ -351,32 +363,9 @@ class QueryService:
             return None
 
         try:
-            for request in query.requests:
-                cleaned_data = []
-
-                for hit in request.data:
-                    source = hit["_source"]
-
-                    if source.get("embed") and source["embed"].get("external"):
-                        if source["embed"]["external"].get("description") is not None:
-                            source["embed"]["external"]["description"] = "␣"
-                            clean_text(source["embed"]["external"]["description"])
-
-                        if source["embed"]["external"].get("title") is not None:
-                            source["embed"]["external"]["title"] = "␣"
-                            clean_text(source["embed"]["external"]["title"])
-
-                    if source.get("text") is not None:
-                        source["text"] = clean_text(source["text"])
-
-                    hit["_source"] = source
-                    cleaned_data.append(hit)
-
-                request.cleaned_data = cleaned_data
-
-                request.set_updated_at()
-                self._query_request_repo.update(request)
-
+            # Cleaning no longer produces a stored artifact. It used to write a near-complete
+            # duplicate of every hit into requests.cleaned_data; it is now a transform applied
+            # between the raw pages and the processed output in _parse_data.
             query.status = PARSE_IN_PROGRESS
             query.set_updated_at()
 
@@ -413,27 +402,19 @@ class QueryService:
             return None
 
         try:
-            logger.debug("Creating dataframe from requests...")
-            data_frame: DataFrame = query.from_requests_to_dataframe()
-            logger.debug(f"Dataframe created with {len(data_frame)} rows")
+            # Raw pages already carry the declared columns for the platform, so parsing is now
+            # read -> clean -> drop unused columns -> write, with no schema inference involved.
+            request_ids = [request.id for request in query.requests]
+            data_frame: pl.DataFrame | None = read_raw(query.id, request_ids)
 
-            data_frame.columns = data_frame.columns.str.replace(
-                "_source.", "", regex=False
-            )
-            dataframe_columns = PLATFORMS.get(query.platform, {}).get("columns", None)
+            if data_frame is None:
+                raise ValueError(f"no raw dataset found for query {query.id}")
 
-            if dataframe_columns is None:
-                raise ValueError(
-                    f"Unknown platform is being used during _parse_data function call platform: {query.platform}"
-                )
+            logger.debug("read %d raw rows for query %s", data_frame.height, query.id)
 
-            available_columns = [
-                column for column in dataframe_columns if column in data_frame.columns
-            ]
-            data_frame = data_frame[available_columns]
+            data_frame = drop_empty_columns(clean_frame(query.platform, data_frame))
 
-            logger.debug("Converting to processed data...")
-            query.from_dataframe_to_processed_data(data_frame)
+            write_processed(query.id, data_frame)
             query.status = QUERY_COMPLETE
             query.set_updated_at()
 
@@ -617,6 +598,8 @@ class QueryService:
 
         self._emitter.emit(f"CANCEL:{str(data.id)}")
         self._query_repo.delete(data.id)
+        # Post data lives on disk now, so deleting the row is no longer enough to reclaim it.
+        delete_dataset(data.id)
 
     def batch_delete(self, data: DeleteQueriesValidator) -> None:
         ids: list[UUID] = []
@@ -629,3 +612,6 @@ class QueryService:
             ids.append(id)
 
         self._query_repo.batch_delete(ids)
+
+        for id in ids:
+            delete_dataset(id)

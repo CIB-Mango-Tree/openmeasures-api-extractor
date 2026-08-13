@@ -1,7 +1,5 @@
-from sqlalchemy import DateTime, String, Integer, Float, LargeBinary
+from sqlalchemy import DateTime, String, Integer, Float
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from pandas import DataFrame, json_normalize, read_feather
-from io import BytesIO
 from datetime import datetime
 from .base import BaseModelWithTimestamp
 from .term import QueryTerm
@@ -22,11 +20,6 @@ class Query(BaseModelWithTimestamp):
     queries_used: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     rows_fetched: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     percentage: Mapped[float] = mapped_column(Float, nullable=False, default=0)
-    # Deferred: this blob averages several MB per row and no list view needs it. Loading it
-    # eagerly meant every GET /api/queries moved it once per joined term row.
-    processed_data: Mapped[bytes | None] = mapped_column(
-        LargeBinary, nullable=True, deferred=True
-    )
     terms: Mapped[list[QueryTerm]] = relationship(
         cascade="all, delete", order_by="QueryTerm.position"
     )
@@ -38,33 +31,6 @@ class Query(BaseModelWithTimestamp):
 
         self.queries_used += step
 
-    def from_requests_to_dataframe(self) -> DataFrame:
-        data = []
-
-        for request in self.requests:
-            if request.cleaned_data is not None:
-                data.extend(request.cleaned_data)
-
-        return json_normalize(data)
-
-    def from_dataframe_to_processed_data(self, data_frame: DataFrame) -> None:
-        buffer = BytesIO()
-
-        data_frame.to_feather(buffer)
-        self.processed_data = buffer.getvalue()
-
-    # Takes the blob rather than reading self.processed_data: the column is deferred and
-    # repositories return detached instances, so touching it here would raise
-    # DetachedInstanceError. Callers fetch the bytes with QueryRepository.find_processed_data.
-    @staticmethod
-    def processed_data_to_dataframe(processed_data: bytes | None) -> DataFrame | None:
-        if not processed_data:
-            return None
-
-        buffer = BytesIO()
-        buffer.write(processed_data)
-
-        return read_feather(buffer)
 
     @property
     def term(self) -> str:

@@ -15,6 +15,12 @@ PLATFORMS: dict[str, dict[str, str | list[str]]] = {
             "authorProfile._id",
             "authorProfile.did",
         ],
+        # Free-text columns passed through clean_text (HTML unescaping + mojibake repair).
+        "clean_columns": [
+            "text",
+            "embed.external.description",
+            "embed.external.title",
+        ],
     },
     "truth_social": {
         "readable": "Truth Social",
@@ -34,5 +40,8 @@ PLATFORMS: dict[str, dict[str, str | list[str]]] = {
             "replies_count",
             "reblogs_count",
         ],
+        # Left empty to preserve existing behaviour: the previous pipeline only ever cleaned the
+        # bluesky fields. content_cleaned arrives pre-sanitized from the API.
+        "clean_columns": [],
     },
 }

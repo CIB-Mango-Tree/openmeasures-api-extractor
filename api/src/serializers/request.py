@@ -1,8 +1,7 @@
 from .base import BaseSerializer
-from typing import Any
 
 
 class QueryRequestSerializer(BaseSerializer):
+    # data/cleaned_data are gone: the hits live in Parquet on disk, and serializing them here
+    # meant GET /api/queries?include_requests=true could return hundreds of megabytes.
     row_count: int
-    data: list[dict[str, Any]] | None
-    cleaned_data: list[dict[str, Any]] | None
