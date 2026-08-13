@@ -71,8 +71,7 @@ export default function DateTimePicker({ value, disabled, onChange, invalid }: D
   return (
     <div className="grid grid-flow-col grid-cols-8 gap-2">
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button variant="outline"
+        <PopoverTrigger render={<Button variant="outline"
             id="date-picker"
             disabled={disabled}
             className={buttonClasses}
@@ -81,8 +80,7 @@ export default function DateTimePicker({ value, disabled, onChange, invalid }: D
               {mounted && date != null ? format(date, 'MM/dd/yyyy') : 'Select date'}
             </span>
             <ChevronDownIcon />
-          </Button>
-        </PopoverTrigger>
+          </Button>} />
         <PopoverContent className="w-auto overflow-hidden p-0" align="start">
           <Calendar
             mode="single"

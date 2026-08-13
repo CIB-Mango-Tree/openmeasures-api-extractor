@@ -10,7 +10,9 @@ import { mapResponseToQuery } from '@lib/map';
 import { SquarePlus } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent } from '@components/ui/card';
 import { Field, FieldLabel, FieldSet, FieldGroup, FieldError } from '@components/ui/field';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select';
+import { Combobox, ComboboxCollection, ComboboxContent, ComboboxEmpty, ComboboxGroup, ComboboxInput, ComboboxItem, ComboboxLabel, ComboboxList } from '@components/ui/combobox';
+import { TIMEZONE_GROUPS, TIMEZONES } from '@constants/timezones';
 import { Button } from '@components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@components/ui/tooltip';
 import DateTimePicker from '@components/date-time-picker';
@@ -21,6 +23,7 @@ import type { ReactElement, FC, FormEvent } from 'react';
 import type { SearchTermValues, SearchTermChangeValues } from '@appTypes/term';
 import type { CreateQueryPayload, QueryTerm, Query, QueryResponse } from '@appTypes/query';
 import type { Platform } from '@appTypes/platform';
+import type { Timezone, TimezoneGroup } from '@constants/timezones';
 import type { APICollectionResponse, APIResponse, APIErrorCollectionResponse, ValidationError } from '@appTypes/fetch';
 import type { LimitState, LimitAlertState } from '@state/limit';
 import type { FetchingQueryState, QueriesState } from '@state/query';
@@ -39,6 +42,12 @@ export function QueryBuilder(): ReactElement<FC> {
   const [endDateError, setEndDateError] = useState<ValidationError | null>(null);
   const [submitDisabled, setSubmitDisabled] = useState<boolean>(false);
   const [timezone, setTimezone] = useState<string>(defaultTimezone);
+  // The combobox works in Timezone objects (so it can search on the label) while the form
+  // state stays the IANA identifier the API expects.
+  const selectedTimezone = useMemo<Timezone | null>(
+    (): Timezone | null => TIMEZONES.find((item: Timezone): boolean => item.value === timezone) ?? null,
+    [timezone]
+  );
   const [platform, setPlatform] = useState<string>('');
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
@@ -195,65 +204,35 @@ export function QueryBuilder(): ReactElement<FC> {
               <FieldGroup>
                 <Field className="w-1/2">
                   <FieldLabel>Time Zone</FieldLabel>
-                  <Select disabled={submitDisabled} value={timezone} onValueChange={setTimezone}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a timezone" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectLabel>North America</SelectLabel>
-                        <SelectItem value="America/New_York">Eastern Standard Time (EST)</SelectItem>
-                        <SelectItem value="America/Chicago">Central Standard Time (CST)</SelectItem>
-                        <SelectItem value="America/Denver">Mountain Standard Time (MST)</SelectItem>
-                        <SelectItem value="America/Los_Angeles">Pacific Standard Time (PST)</SelectItem>
-                        <SelectItem value="America/Anchorage">Alaska Standard Time (AKST)</SelectItem>
-                        <SelectItem value="Pacific/Honolulu">Hawaii Standard Time (HST)</SelectItem>
-                      </SelectGroup>
-                      <SelectGroup>
-                        <SelectLabel>Europe & Africa</SelectLabel>
-                        <SelectItem value="Europe/London">Greenwich Mean Time (GMT)</SelectItem>
-                        <SelectItem value="Europe/Paris">Central European Time (CET)</SelectItem>
-                        <SelectItem value="Europe/Athens">Eastern European Time (EET)</SelectItem>
-                        <SelectItem value="Europe/Lisbon">
-                          Western European Summer Time (WEST)
-                        </SelectItem>
-                        <SelectItem value="Africa/Maputo">Central Africa Time (CAT)</SelectItem>
-                        <SelectItem value="Africa/Nairobi">East Africa Time (EAT)</SelectItem>
-                      </SelectGroup>
-                      <SelectGroup>
-                        <SelectLabel>Asia</SelectLabel>
-                        <SelectItem value="Europe/Moscow">Moscow Time (MSK)</SelectItem>
-                        <SelectItem value="Asia/Kolkata">India Standard Time (IST)</SelectItem>
-                        <SelectItem value="Asia/Shanghai">China Standard Time (CST)</SelectItem>
-                        <SelectItem value="Asia/Tokyo">Japan Standard Time (JST)</SelectItem>
-                        <SelectItem value="Asia/Seoul">Korea Standard Time (KST)</SelectItem>
-                        <SelectItem value="Asia/Makassar">
-                          Indonesia Central Standard Time (WITA)
-                        </SelectItem>
-                      </SelectGroup>
-                      <SelectGroup>
-                        <SelectLabel>Australia & Pacific</SelectLabel>
-                        <SelectItem value="Australia/Perth">
-                          Australian Western Standard Time (AWST)
-                        </SelectItem>
-                        <SelectItem value="Australia/Adelaide">
-                          Australian Central Standard Time (ACST)
-                        </SelectItem>
-                        <SelectItem value="Australia/Sydney">
-                          Australian Eastern Standard Time (AEST)
-                        </SelectItem>
-                        <SelectItem value="Pacific/Auckland">New Zealand Standard Time (NZST)</SelectItem>
-                        <SelectItem value="Pacific/Fiji">Fiji Time (FJT)</SelectItem>
-                      </SelectGroup>
-                      <SelectGroup>
-                        <SelectLabel>South America</SelectLabel>
-                        <SelectItem value="America/Argentina/Buenos_Aires">Argentina Time (ART)</SelectItem>
-                        <SelectItem value="America/La_Paz">Bolivia Time (BOT)</SelectItem>
-                        <SelectItem value="America/Sao_Paulo">Brasilia Time (BRT)</SelectItem>
-                        <SelectItem value="America/Santiago">Chile Standard Time (CLT)</SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
+                  {/* Combobox rather than Select: 27 options across 5 regions is more than is
+                      comfortable to scan, and this lets the user type to filter. */}
+                  <Combobox
+                    items={TIMEZONE_GROUPS}
+                    value={selectedTimezone}
+                    onValueChange={(value: Timezone | null): void => setTimezone(value?.value ?? '')}
+                    itemToStringLabel={(item: Timezone): string => item.label}
+                    disabled={submitDisabled}>
+                    <ComboboxInput placeholder="Select a timezone" />
+                    <ComboboxContent>
+                      <ComboboxEmpty>No matching time zone.</ComboboxEmpty>
+                      <ComboboxList>
+                        <ComboboxCollection>
+                          {(group: TimezoneGroup): ReactElement<FC> => (
+                            <ComboboxGroup key={group.value} items={group.items}>
+                              <ComboboxLabel>{group.value}</ComboboxLabel>
+                              <ComboboxCollection>
+                                {(item: Timezone): ReactElement<FC> => (
+                                  <ComboboxItem key={item.value} value={item}>
+                                    {item.label}
+                                  </ComboboxItem>
+                                )}
+                              </ComboboxCollection>
+                            </ComboboxGroup>
+                          )}
+                        </ComboboxCollection>
+                      </ComboboxList>
+                    </ComboboxContent>
+                  </Combobox>
                 </Field>
               </FieldGroup>
               <FieldGroup>
@@ -281,7 +260,7 @@ export function QueryBuilder(): ReactElement<FC> {
               <FieldGroup>
                 <Field className="w-1/2">
                   <FieldLabel>Social Media Platform</FieldLabel>
-                  <Select disabled={submitDisabled} value={platform} onValueChange={setPlatform}>
+                  <Select disabled={submitDisabled} value={platform} onValueChange={(value: string | null): void => setPlatform(value ?? "")}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select a platform" />
                     </SelectTrigger>
@@ -325,17 +304,15 @@ export function QueryBuilder(): ReactElement<FC> {
                     onButtonCLick={handleSearchTermDelete} />;
                 })}
                 <Field orientation="horizontal">
-                  <Tooltip delayDuration={1000}>
-                    <TooltipTrigger asChild>
-                      <Button
+                  <Tooltip>
+                    <TooltipTrigger render={<Button
                         type="button"
                         variant="link"
                         className="cursor-pointer has-[>svg]:px-0 p-0"
                         disabled={submitDisabled}
                         onClick={handleSearchTermAdd}>
                         <SquarePlus className="size-6" />
-                      </Button>
-                    </TooltipTrigger>
+                      </Button>} />
                     <TooltipContent>
                       Add search term
                     </TooltipContent>

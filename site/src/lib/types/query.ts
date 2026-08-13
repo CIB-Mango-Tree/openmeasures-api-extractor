@@ -1,4 +1,4 @@
-import { FETCH_IN_PROGRESS, FETCH_INCOMPLETE, CLEAN_IN_PROGRESS, CLEAN_INCOMPLETE, PARSE_IN_PROGRESS, PARSE_INCOMPLETE, QUERY_COMPLETE } from '@constants/status';
+import { FETCH_IN_PROGRESS, FETCH_INCOMPLETE, CLEAN_IN_PROGRESS, PARSE_IN_PROGRESS, PARSE_INCOMPLETE, QUERY_COMPLETE } from '@constants/status';
 import { SearchTermModifier } from '@appTypes/term';
 
 export type QueryTerm = {
@@ -6,7 +6,7 @@ export type QueryTerm = {
   modifier: SearchTermModifier;
 };
 
-export type QueryStatus = typeof FETCH_IN_PROGRESS | typeof FETCH_INCOMPLETE | typeof CLEAN_IN_PROGRESS | typeof CLEAN_INCOMPLETE | typeof PARSE_IN_PROGRESS | typeof PARSE_INCOMPLETE | typeof QUERY_COMPLETE;
+export type QueryStatus = typeof FETCH_IN_PROGRESS | typeof FETCH_INCOMPLETE | typeof CLEAN_IN_PROGRESS | typeof PARSE_IN_PROGRESS | typeof PARSE_INCOMPLETE | typeof QUERY_COMPLETE;
 
 export type Query = {
   id: string;

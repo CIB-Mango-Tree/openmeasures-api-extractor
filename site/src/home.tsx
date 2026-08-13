@@ -13,7 +13,7 @@ import { QueryTable } from '@components/table';
 import { QueryResultView } from '@components/results';
 import { QueryDetailsDialog } from '@components/details';
 import { Toaster } from '@components/ui/sonner';
-import { FETCH_UPDATE_PROGRESS, CLEAN_IN_PROGRESS, PARSE_IN_PROGRESS, FETCH_INCOMPLETE, QUERY_COMPLETE, LIMIT_UPDATE, LIMIT_MAXED_OUT } from '@constants/status';
+import { FETCH_UPDATE_PROGRESS, PARSE_IN_PROGRESS, FETCH_INCOMPLETE, QUERY_COMPLETE, LIMIT_UPDATE, LIMIT_MAXED_OUT } from '@constants/status';
 import { FETCHING_QUERY_KEY, SELECTED_QUERY_KEY } from '@constants/local-storage';
 import type { ReactElement, FC } from 'react';
 import type { Query, QueryResponse } from '@appTypes/query';
@@ -127,7 +127,6 @@ export default function Home(): ReactElement<FC> {
 
       queriesState.update(query);
     });
-    connectionRef.current.on(CLEAN_IN_PROGRESS, handleInProgressUpdate);
     connectionRef.current.on(PARSE_IN_PROGRESS, handleInProgressUpdate);
     connectionRef.current.on(FETCH_INCOMPLETE, (data: EventMessageData): void => {
       const query: Query = mapResponseToQuery(data.query as QueryResponse);

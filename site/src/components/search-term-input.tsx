@@ -48,7 +48,7 @@ export default function SearchTermInput({ index, modifier, term, onChange, disab
 
   return (
     <Field key={index} orientation="horizontal">
-      <Select disabled={disabled} value={modifier} onValueChange={handleSelect} >
+      <Select disabled={disabled} value={modifier} onValueChange={(value: string | null): void => handleSelect(value ?? "")} >
         <SelectTrigger className="w-1/2">
           <SelectValue placeholder="Select Modifier" />
         </SelectTrigger>
@@ -67,12 +67,10 @@ export default function SearchTermInput({ index, modifier, term, onChange, disab
         onChange={handleChange}
         className={inputClasses} />
       {!isDefault && (
-        <Tooltip delayDuration={1000}>
-          <TooltipTrigger asChild>
-            <Button variant="link" className="cursor-pointer" disabled={disabled} onClick={handleDeleteClick}>
+        <Tooltip>
+          <TooltipTrigger render={<Button variant="link" className="cursor-pointer" disabled={disabled} onClick={handleDeleteClick}>
               <Delete className="size-5" />
-            </Button>
-          </TooltipTrigger>
+            </Button>} />
           <TooltipContent>
             Remove search term
           </TooltipContent>

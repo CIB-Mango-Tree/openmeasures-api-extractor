@@ -1,6 +1,7 @@
 import { ThemeProvider } from '@components/theme-provider';
 import Header from '@components/header';
 import { ModeToggle } from '@components/mode-toggle';
+import { TooltipProvider } from '@components/ui/tooltip';
 import Home from '@/home';
 import type { ReactElement, FC } from 'react';
 
@@ -9,11 +10,15 @@ import type { ReactElement, FC } from 'react';
 export default function App(): ReactElement<FC> {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <Header />
-      <Home />
-      <footer className="grid grid-flow-col justify-end px-4 pb-4">
-        <ModeToggle />
-      </footer>
+      {/* Base UI requires an explicit Tooltip provider, and the hover delay lives here rather
+          than on each tooltip -- both call sites previously passed delayDuration={1000}. */}
+      <TooltipProvider delay={1000}>
+        <Header />
+        <Home />
+        <footer className="grid grid-flow-col justify-end px-4 pb-4">
+          <ModeToggle />
+        </footer>
+      </TooltipProvider>
     </ThemeProvider>
   );
 }

@@ -17,9 +17,7 @@ export default function Header(): ReactElement<FC> {
         <span className="font-light text-sm ml-4 mt-2">A Civic Tech DC Project</span>
       </div>
       <div className="grid grid-flow-col">
-        <Button asChild>
-          <a href="https://cibmangotree.org" target="_blank">Project Website</a>
-        </Button>
+        <Button render={<a href="https://cibmangotree.org" target="_blank">Project Website</a>} />
       </div>
     </header>
   );

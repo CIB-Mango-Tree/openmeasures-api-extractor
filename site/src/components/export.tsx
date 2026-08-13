@@ -18,14 +18,12 @@ export function ExportButton({ id, disabled = false }: ExportButtonProps): React
 
   return (
     <DropdownMenu onOpenChange={handleOpenChange}>
-      <DropdownMenuTrigger asChild>
-        <Button
+      <DropdownMenuTrigger render={<Button
           disabled={disabled}
           className="cursor-pointer">
           Export
           <ChevronDown className={chevronClasses} />
-        </Button>
-      </DropdownMenuTrigger>
+        </Button>} />
       <DropdownMenuContent align="end">
         <DropdownMenuItem>
           <a className="inline-flex items-center w-full"

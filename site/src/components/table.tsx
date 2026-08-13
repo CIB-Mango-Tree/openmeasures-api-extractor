@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
 import { Button } from '@components/ui/button';
 import { Badge } from '@components/ui/badge';
-import { QUERY_COMPLETE, FETCH_INCOMPLETE, CLEAN_INCOMPLETE, PARSE_INCOMPLETE } from '@constants/status';
+import { QUERY_COMPLETE, FETCH_INCOMPLETE, PARSE_INCOMPLETE } from '@constants/status';
 import type { ReactElement, FC, PropsWithChildren } from 'react';
 import type { ColumnDef, Column, CellContext, HeaderGroup, Header, HeaderContext, Row, Cell, SortingState } from '@tanstack/react-table';
 import type { QueriesState, SelectedQueryState, QueryCallback } from '@state/query';
@@ -69,8 +69,8 @@ export function QueryTable({ columns }: QueryTableProps): ReactElement<FC> {
         const status: string = row.getValue('status');
         const badgeClasses: string = cn({
           'bg-green-600/10 text-green-600 dark:bg-green-400/20': status === QUERY_COMPLETE,
-          'bg-red-600/10 text-red-600 dark:bg-red-400/20': status === FETCH_INCOMPLETE || status === CLEAN_INCOMPLETE || status === PARSE_INCOMPLETE,
-          'bg-zinc-600/10 text-zinc-600 dark:bg-zinc-400/20 dark:text-zinc-400': status !== QUERY_COMPLETE && status !== FETCH_INCOMPLETE && status !== CLEAN_INCOMPLETE && status !== PARSE_INCOMPLETE,
+          'bg-red-600/10 text-red-600 dark:bg-red-400/20': status === FETCH_INCOMPLETE || status === PARSE_INCOMPLETE,
+          'bg-zinc-600/10 text-zinc-600 dark:bg-zinc-400/20 dark:text-zinc-400': status !== QUERY_COMPLETE && status !== FETCH_INCOMPLETE && status !== PARSE_INCOMPLETE,
         }, 'min-w-5 h-5 border-0 rounded-full font-bold tabular-nums');
 
         return <Badge className={badgeClasses}>{status}</Badge>;

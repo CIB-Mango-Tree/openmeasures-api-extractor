@@ -11,7 +11,7 @@ import { Spinner } from '@components/ui/spinner';
 import { Badge } from '@components/ui/badge';
 import { Separator } from '@components/ui/separator';
 import { ExportButton } from '@components/export';
-import { QUERY_COMPLETE, FETCH_INCOMPLETE, FETCH_CONTINUE, CLEAN_INCOMPLETE, PARSE_INCOMPLETE } from '@constants/status';
+import { QUERY_COMPLETE, FETCH_INCOMPLETE, FETCH_CONTINUE, PARSE_INCOMPLETE } from '@constants/status';
 import { EQ, AND, OR, NOT } from '@constants/modifiers';
 import type { ReactElement, FC } from 'react';
 import type { SelectedQueryState, CurrentViewType } from '@state/query';
@@ -25,11 +25,11 @@ export function QueryDetailsHeader(): ReactElement<FC> {
   const badgeClasses: string = cn({
     'bg-green-600/10 text-green-600 dark:bg-green-400/20': selectedQuery?.status === QUERY_COMPLETE,
     'bg-red-600/10 text-red-600 dark:bg-red-400/20': (
-      selectedQuery?.status === FETCH_INCOMPLETE || selectedQuery?.status === CLEAN_INCOMPLETE ||
+      selectedQuery?.status === FETCH_INCOMPLETE ||
       selectedQuery?.status === PARSE_INCOMPLETE
     ),
     'bg-zinc-600/10 text-zinc-600 dark:bg-zinc-400/20 dark:text-zinc-400': (
-      selectedQuery?.status !== QUERY_COMPLETE && selectedQuery?.status !== FETCH_INCOMPLETE && selectedQuery?.status !== CLEAN_INCOMPLETE &&
+      selectedQuery?.status !== QUERY_COMPLETE && selectedQuery?.status !== FETCH_INCOMPLETE &&
       selectedQuery?.status !== PARSE_INCOMPLETE
     ),
   }, 'min-w-5 h-5 border-0 rounded-full font-bold tabular-nums ml-2');
@@ -97,7 +97,6 @@ export function QueryDetailsFooter(): ReactElement<FC> {
   const isDisabled: boolean = (
     (
       state.selectedQuery?.status !== (FETCH_INCOMPLETE as string) &&
-      state.selectedQuery?.status !== (CLEAN_INCOMPLETE as string) &&
       state.selectedQuery?.status !== (PARSE_INCOMPLETE as string)
     ) ||
     limitState.count === 0
@@ -312,8 +311,17 @@ export function QueryDetailsDialog(): ReactElement<FC> {
   };
 
   return (
-    <Dialog open={state.selectedQuery != null}>
-      <DialogContent onInteractOutside={handleDialogClose} showCloseButton={false}>
+    // Base UI has no onInteractOutside; dismissal reasons arrive through onOpenChange. Filtering
+    // on 'outside-press' preserves the previous behaviour exactly: this dialog closes by clicking
+    // outside it and by nothing else (Escape did not close it before either, because the `open`
+    // prop is controlled and Radix's escape handler had no onOpenChange to call).
+    <Dialog
+      open={state.selectedQuery != null}
+      onOpenChange={(open, eventDetails): void => {
+        if (!open && eventDetails.reason === 'outside-press') handleDialogClose();
+      }}
+    >
+      <DialogContent showCloseButton={false}>
         <QueryDetailsHeader />
         <Separator />
         {state.currentView === 'details' && <QueryDetails />}
