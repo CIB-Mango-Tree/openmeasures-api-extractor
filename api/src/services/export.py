@@ -1,3 +1,4 @@
+from math import floor
 from ..db.repositories import QueryRepository
 from ..storage import read_processed
 from ..utils.export import FileExport
@@ -23,9 +24,13 @@ class QueryExportService:
             return None
 
         exporter = exporter_for(data.format)
+        # The percentage is a raw ratio, so interpolating the float straight in produced names
+        # like "..._0.4235294117647059.csv". Truncated rather than rounded: rounding turns a 99.9%
+        # extraction into "1.00", which reads as complete and defeats the point of the suffix.
+        completion = floor(query.percentage * 100) / 100
         filename = (
             f"{query.platform}_{query.created_at.strftime('%Y%m%d')}"
-            f"_{query.percentage}{exporter.extension}"
+            f"_{completion:.2f}{exporter.extension}"
         )
 
         return FileExport(

@@ -103,7 +103,10 @@ export function LimitAlertContinueDialog(): ReactElement<FC> {
   );
 
   return (
-    <AlertDialogContent>
+    // Wider than the default: three actions side by side overflow the sm max-width this dialog
+    // ships with. The data-size prefix has to be repeated for tailwind-merge to treat it as the
+    // same class and let this one win.
+    <AlertDialogContent className="data-[size=default]:sm:max-w-xl">
       <AlertDialogHeader>
         <AlertDialogTitle>Your request has exceeded query limit</AlertDialogTitle>
         <AlertDialogDescription>
@@ -112,7 +115,8 @@ export function LimitAlertContinueDialog(): ReactElement<FC> {
           If you want to proceed, you can either export this partial data, or use more remaining queries to complete your query.
         </AlertDialogDescription>
       </AlertDialogHeader>
-      <AlertDialogFooter>
+      {/* Wraps rather than overflowing if the window is narrower than the three buttons need. */}
+      <AlertDialogFooter className="sm:flex-wrap">
         <AlertDialogCancel onClick={handleDiscard}
           className="cursor-pointer">
           Discard
