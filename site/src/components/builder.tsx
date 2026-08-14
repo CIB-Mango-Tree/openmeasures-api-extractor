@@ -112,23 +112,55 @@ export function QueryBuilder(): ReactElement<FC> {
       end_date: formatISO(endDate as Date, { format: 'extended' }),
       terms: Object.values(searchTerms) as Array<QueryTerm>
     };
-    const response = await POSTQuery(payload);
+    setStartDateError(null);
+    setEndDateError(null);
+
+    let response: APIResponse<QueryResponse> | APIErrorCollectionResponse<ValidationError>;
+
+    try {
+      response = await POSTQuery(payload);
+
+    } catch (error) {
+      // Without this the rejection was unhandled: no message, and the form stayed disabled
+      // because setSubmitDisabled(false) never ran.
+      console.error('an error occurred when attempting to create query', error);
+      toast.error('Could not start the extraction', {
+        description: error instanceof ApiError && error.isUnreachable
+          ? 'The extractor service is not responding.'
+          : 'Something went wrong creating the query. Check the logs for details.'
+      });
+      setSubmitDisabled(false);
+      return;
+    }
 
     if (response.code === 422) {
       const validationErrors: Array<ValidationError> = (response as APIErrorCollectionResponse<ValidationError>).error;
+      let surfaced: boolean = false;
 
       for (const err of validationErrors) {
-        if (err.loc.includes('start_date') && err.type === 'date_past') {
+        // Matched on the field rather than the error type: the two date validators raise
+        // different type strings ('date_past' and 'datetime_past'), so checking the type meant
+        // end-date errors were never displayed.
+        if (err.loc.includes('start_date')) {
           setStartDateError(err);
+          surfaced = true;
           continue;
         }
 
-        if (err.loc.includes('end_date') && err.type === 'date_past') {
+        if (err.loc.includes('end_date')) {
           setEndDateError(err);
+          surfaced = true;
           continue;
         }
 
         console.error('an error occurred when attempting to create query', err);
+      }
+
+      // Anything not tied to a date field has nowhere to render inline.
+      if (!surfaced) {
+        toast.error('Could not start the extraction', {
+          description: validationErrors[0]?.msg ?? 'The query was rejected as invalid.'
+        });
       }
 
       setSubmitDisabled(false);

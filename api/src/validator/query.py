@@ -72,7 +72,15 @@ class CreateQueryValidator(BaseModel):
                 "the start date must be at least 6 months in the past from today",
             )
 
-        if localized_value > info.data["end_date"].replace(tzinfo=ZoneInfo(timezone)):
+        end_date = info.data.get("end_date")
+
+        # end_date is absent from info.data when its own validator rejected it. Subscripting it
+        # raised KeyError, which escaped as an unhandled 500 instead of the 422 carrying the
+        # actual end-date message.
+        if end_date is None:
+            return value
+
+        if localized_value > end_date.replace(tzinfo=ZoneInfo(timezone)):
             raise PydanticCustomError(
                 "date_past", "the start date must not be greater than the end date"
             )
