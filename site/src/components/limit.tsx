@@ -1,8 +1,8 @@
-import { useLimitState, useLimitAlertState } from '@state/limit';
-import { useFetchingQueryState, useQueries } from '@state/query';
-import { PATCHQuery } from '@lib/fetch/query';
+import { toast } from 'sonner';
+import { useLimitAlertState } from '@state/limit';
+import { useFetchingQueryState } from '@state/query';
+import { useLimit, useQueryByID, useUpdateQueryStatus } from '@lib/api';
 import { cn } from '@lib/utils';
-import { mapResponseToQuery } from '@lib/map';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@components/ui/alert';
 import {
@@ -16,15 +16,17 @@ import {
   AlertDialogTitle,
 } from '@components/ui/alert-dialog';
 import { AlertCircleIcon, TriangleAlert } from 'lucide-react';
-import { FETCH_CONTINUE } from '@constants/status';
+import { Button } from '@components/ui/button';
+import { FETCH_CONTINUE, CLEAN_CONTINUE } from '@constants/status';
 import type { ReactElement, FC } from 'react';
-import type { Query, QueryResponse } from '@appTypes/query';
-import type { APIResponse } from '@appTypes/fetch';
-import type { LimitState, LimitAlertState } from '@state/limit';
-import type { FetchingQueryState, QueriesState } from '@state/query';
+import type { Query } from '@appTypes/query';
+import type { LimitAlertState } from '@state/limit';
+import type { FetchingQueryState } from '@state/query';
+
+const DAILY_LIMIT = 39;
 
 export function LimitAlert(): ReactElement<FC> {
-  const count = useLimitState((state: LimitState): number => state.count);
+  const { count } = useLimit();
   const alertClasses: string = cn('col-span-8', {
     'border-destructive': count === 0
   });
@@ -43,7 +45,7 @@ export function LimitAlert(): ReactElement<FC> {
 }
 
 export function LimitCounter(): ReactElement<FC> {
-  const count = useLimitState((state: LimitState): number => state.count);
+  const { count } = useLimit();
 
   return (
     <Card className="col-span-4 justify-start gap-0 py-4">
@@ -53,11 +55,11 @@ export function LimitCounter(): ReactElement<FC> {
       <CardContent>
         <span className="text-xl font-bold">
           {count}
-          <span className="text-muted-foreground">/39</span>
+          <span className="text-muted-foreground">/{DAILY_LIMIT}</span>
         </span>
       </CardContent>
       <CardFooter>
-        <p className="text-sm text-muted-foreground">{39 - count} used</p>
+        <p className="text-sm text-muted-foreground">{DAILY_LIMIT - count} used</p>
       </CardFooter>
     </Card>
   );
@@ -66,20 +68,39 @@ export function LimitCounter(): ReactElement<FC> {
 export function LimitAlertContinueDialog(): ReactElement<FC> {
   const fetchingQueryState = useFetchingQueryState((state: FetchingQueryState): FetchingQueryState => state);
   const limitAlertState = useLimitAlertState((state: LimitAlertState): LimitAlertState => state);
-  const queriesState = useQueries((state: QueriesState): QueriesState => state);
+  const query: Query | null = useQueryByID(fetchingQueryState.queryID);
+  const updateStatus = useUpdateQueryStatus();
   const handleDiscard = (): void => {
     limitAlertState.toggleShow();
     fetchingQueryState.removeQuery();
-    fetchingQueryState.toggleShow();
+    if (fetchingQueryState.showProgress) fetchingQueryState.toggleShow();
   };
-  const handleContinue = async (): Promise<void> => {
-    const response = await PATCHQuery(fetchingQueryState.query?.id as string, FETCH_CONTINUE) as APIResponse<QueryResponse>;
-    const query: Query = mapResponseToQuery(response.data);
+  // Both actions resume the pipeline and return; the progress card follows the status from there,
+  // and the export button enables on its own once the query reports complete.
+  const resume = async (status: string, failureMessage: string): Promise<void> => {
+    if (fetchingQueryState.queryID == null) return;
 
-    fetchingQueryState.setQuery(query);
-    queriesState.update(query);
+    try {
+      await updateStatus.mutateAsync({ id: fetchingQueryState.queryID, status });
+
+    } catch (error) {
+      console.error(failureMessage, error);
+      toast.error('Could not resume the extraction', {
+        description: 'Something went wrong asking the extractor to continue.'
+      });
+      return;
+    }
+
     limitAlertState.toggleShow();
   };
+  const handleContinue = (): Promise<void> => resume(
+    FETCH_CONTINUE, 'an error occurred when resuming the extraction'
+  );
+  // Parses what has already been fetched instead of spending more of the daily allowance on it,
+  // so this is never gated on the remaining request count.
+  const handleExtractSoFar = (): Promise<void> => resume(
+    CLEAN_CONTINUE, 'an error occurred when preparing the partial extraction'
+  );
 
   return (
     <AlertDialogContent>
@@ -87,7 +108,7 @@ export function LimitAlertContinueDialog(): ReactElement<FC> {
         <AlertDialogTitle>Your request has exceeded query limit</AlertDialogTitle>
         <AlertDialogDescription>
           The API extractor has reached its single request limit of 10,000 rows, extracting only{' '}
-          {fetchingQueryState.query ? Math.round(fetchingQueryState.query.percentage * 100) : 0}% of your filtered query.
+          {query != null ? Math.round(query.percentage * 100) : 0}% of your filtered query.
           If you want to proceed, you can either export this partial data, or use more remaining queries to complete your query.
         </AlertDialogDescription>
       </AlertDialogHeader>
@@ -96,7 +117,15 @@ export function LimitAlertContinueDialog(): ReactElement<FC> {
           className="cursor-pointer">
           Discard
         </AlertDialogCancel>
-        <AlertDialogAction onClick={handleContinue}
+        <Button
+          variant="outline"
+          onClick={(): void => { void handleExtractSoFar(); }}
+          disabled={updateStatus.isPending}
+          className="cursor-pointer">
+          Extract Data so Far
+        </Button>
+        <AlertDialogAction onClick={(): void => { void handleContinue(); }}
+          disabled={updateStatus.isPending}
           className="cursor-pointer">
           Complete with more requests
         </AlertDialogAction>

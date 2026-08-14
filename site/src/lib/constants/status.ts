@@ -5,6 +5,10 @@ export const FETCH_CONTINUE = 'FETCH:CONTINUE' as const;
 // Retained for queries persisted mid-flight by an older build; the backend no longer
 // emits it, but such a row still needs to render.
 export const CLEAN_IN_PROGRESS = 'CLEAN:IN_PROGRESS' as const;
+// Sent to stop fetching and parse whatever has already been extracted. The backend maps
+// FETCH:INCOMPLETE + CLEAN:CONTINUE onto PARSE:CONTINUE, which is what makes a partial
+// extraction exportable.
+export const CLEAN_CONTINUE = 'CLEAN:CONTINUE' as const;
 export const PARSE_IN_PROGRESS = 'PARSE:IN_PROGRESS' as const;
 export const PARSE_INCOMPLETE = 'PARSE:INCOMPLETE' as const;
 export const PARSE_CONTINUE = 'PARSE:CONTINUE' as const;

@@ -4,6 +4,10 @@ import viteTsConfigPaths from 'vite-tsconfig-paths'
 import tailwindcss from '@tailwindcss/vite'
 
 const config = defineConfig({
+  test: {
+    environment: 'jsdom',
+    globals: true,
+  },
   server: {
     // Development only. In production the Python server serves this build and the API from the
     // same origin, so nothing is proxied.

@@ -1,57 +1,41 @@
 import { create } from 'zustand';
-import { Query } from '@appTypes/query';
 
-export type SetQueriesCallback = (queries: Array<Query>) => void;
-export type QueryCallback = (query: Query) => void;
 export type CurrentViewType = 'details' | 'progress' | 'complete';
 
+// These stores hold which query the UI is pointing at, not the query itself: the query objects
+// live in the TanStack Query cache (see @lib/api). Keeping copies here meant every WebSocket
+// handler had to write the same update into three places to keep them from drifting apart.
+
 export interface SelectedQueryState {
-  selectedQuery: Query | null;
+  selectedQueryID: string | null;
   currentView: CurrentViewType;
-  setQuery: QueryCallback;
+  setQueryID: (id: string) => void;
   removeQuery: () => void;
   setCurrentView: (view: CurrentViewType) => void;
   clear: () => void;
 }
 
 export interface FetchingQueryState {
-  query: Query | null;
+  queryID: string | null;
   showProgress: boolean;
-  setQuery: QueryCallback;
+  setQueryID: (id: string) => void;
   removeQuery: () => void;
   toggleShow: () => void;
 }
 
-export interface QueriesState {
-  queries: Array<Query>;
-  set: SetQueriesCallback;
-  push: QueryCallback;
-  update: QueryCallback;
-}
-
 export const useFetchingQueryState = create<FetchingQueryState>((setState): FetchingQueryState => ({
-  query: null,
+  queryID: null,
   showProgress: false,
-  setQuery: (query: Query): void => setState((state: FetchingQueryState): FetchingQueryState => ({ ...state, query })),
-  removeQuery: (): void => setState((state: FetchingQueryState): FetchingQueryState => ({ ...state, query: null })),
+  setQueryID: (id: string): void => setState((state: FetchingQueryState): FetchingQueryState => ({ ...state, queryID: id })),
+  removeQuery: (): void => setState((state: FetchingQueryState): FetchingQueryState => ({ ...state, queryID: null })),
   toggleShow: (): void => setState((state: FetchingQueryState): FetchingQueryState => ({ ...state, showProgress: !state.showProgress }))
 }));
 
-export const useQueries = create<QueriesState>((setState): QueriesState => ({
-  queries: [],
-  set: (queries: Array<Query>): void => setState((state: QueriesState): QueriesState => ({ ...state, queries })),
-  push: (query: Query): void => setState((state: QueriesState): QueriesState => ({ ...state, queries: [...state.queries, query] })),
-  update: (query: Query): void => setState((state: QueriesState): QueriesState => ({
-    ...state,
-    queries: state.queries.map((item: Query) => query.id === item.id ? query : item)
-  })),
-}));
-
 export const useSelectedQuery = create<SelectedQueryState>((setState): SelectedQueryState => ({
-  selectedQuery: null,
+  selectedQueryID: null,
   currentView: 'details',
-  setQuery: (query: Query): void => setState((state: SelectedQueryState): SelectedQueryState => ({ ...state, selectedQuery: query })),
-  removeQuery: (): void => setState((state: SelectedQueryState): SelectedQueryState => ({ ...state, selectedQuery: null })),
+  setQueryID: (id: string): void => setState((state: SelectedQueryState): SelectedQueryState => ({ ...state, selectedQueryID: id })),
+  removeQuery: (): void => setState((state: SelectedQueryState): SelectedQueryState => ({ ...state, selectedQueryID: null })),
   setCurrentView: (view: CurrentViewType): void => setState((state: SelectedQueryState): SelectedQueryState => ({ ...state, currentView: view })),
-  clear: (): void => setState((state: SelectedQueryState): SelectedQueryState => ({ ...state, currentView: 'details', selectedQuery: null }))
+  clear: (): void => setState((state: SelectedQueryState): SelectedQueryState => ({ ...state, currentView: 'details', selectedQueryID: null }))
 }));

@@ -1,8 +1,8 @@
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 import { useSelectedQuery } from '@lib/state/query';
-import { useLimitState, useLimitAlertState } from '@lib/state/limit';
-import { PATCHQuery } from '@lib/fetch/query';
-import { mapResponseToQuery } from '@lib/map';
+import { useLimitAlertState } from '@lib/state/limit';
+import { useLimit, useQueryByID, useUpdateQueryStatus } from '@lib/api';
 import { cn } from '@lib/utils';
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter, DialogHeader } from '@components/ui/dialog';
 import { Button } from '@components/ui/button';
@@ -11,16 +11,22 @@ import { Spinner } from '@components/ui/spinner';
 import { Badge } from '@components/ui/badge';
 import { Separator } from '@components/ui/separator';
 import { ExportButton } from '@components/export';
-import { QUERY_COMPLETE, FETCH_INCOMPLETE, FETCH_CONTINUE, PARSE_INCOMPLETE } from '@constants/status';
+import { QUERY_COMPLETE, FETCH_INCOMPLETE, FETCH_CONTINUE, CLEAN_CONTINUE, PARSE_INCOMPLETE } from '@constants/status';
 import { EQ, AND, OR, NOT } from '@constants/modifiers';
 import type { ReactElement, FC } from 'react';
 import type { SelectedQueryState, CurrentViewType } from '@state/query';
-import type { LimitState, LimitAlertState } from '@state/limit';
-import type { Query, QueryResponse, QueryTerm } from '@appTypes/query';
-import type { APIResponse } from '@appTypes/fetch';
+import type { LimitAlertState } from '@state/limit';
+import type { Query, QueryTerm } from '@appTypes/query';
+
+/** Reads the selected query out of the cache; the store only holds which id is selected. */
+function useSelectedQueryData(): Query | null {
+  const id = useSelectedQuery((state: SelectedQueryState): string | null => state.selectedQueryID);
+
+  return useQueryByID(id);
+}
 
 export function QueryDetailsHeader(): ReactElement<FC> {
-  const selectedQuery = useSelectedQuery((state: SelectedQueryState): Query | null => state.selectedQuery);
+  const selectedQuery: Query | null = useSelectedQueryData();
   const currentView = useSelectedQuery((state: SelectedQueryState): CurrentViewType => state.currentView);
   const badgeClasses: string = cn({
     'bg-green-600/10 text-green-600 dark:bg-green-400/20': selectedQuery?.status === QUERY_COMPLETE,
@@ -65,8 +71,10 @@ export function QueryDetailsHeader(): ReactElement<FC> {
 
 export function QueryDetailsFooter(): ReactElement<FC> {
   const state = useSelectedQuery((state: SelectedQueryState): SelectedQueryState => state);
-  const limitState = useLimitState((state: LimitState): LimitState => state);
+  const selectedQuery: Query | null = useQueryByID(state.selectedQueryID);
+  const limit = useLimit();
   const limitAlertState = useLimitAlertState((state: LimitAlertState): LimitAlertState => state);
+  const updateStatus = useUpdateQueryStatus();
   const handleClose = (): void => {
     if (state.currentView === 'complete') {
       state.clear();
@@ -75,32 +83,43 @@ export function QueryDetailsFooter(): ReactElement<FC> {
 
     state.removeQuery();
   };
+  // Resumes the pipeline and switches to the progress view; the status arrives over the
+  // WebSocket from there, and the footer swaps to the export button on completion.
+  const resume = async (status: string): Promise<void> => {
+    if (state.selectedQueryID == null) return;
+
+    try {
+      const response = await updateStatus.mutateAsync({ id: state.selectedQueryID, status });
+
+      if (response.code !== 200) {
+        console.error('an error occurred when updating query status', response);
+        return;
+      }
+
+    } catch (error) {
+      console.error('an error occurred when updating query status', error);
+      toast.error('Could not resume the extraction', {
+        description: 'Something went wrong asking the extractor to continue.'
+      });
+      return;
+    }
+
+    state.setCurrentView('progress');
+  };
   const handleClick = async (): Promise<void> => {
-    if (limitState.count === 0) {
+    if (limit.count === 0) {
       limitAlertState.setType('maxed_out');
       limitAlertState.toggleShow();
       return;
     }
 
-    const response = await PATCHQuery(state.selectedQuery?.id as string, FETCH_CONTINUE);
-
-    if (response.code !== 200) {
-      console.error('an error occurred when updating query status', response);
-      return;
-    }
-
-    const query: Query = mapResponseToQuery((response as APIResponse<QueryResponse>).data);
-
-    state.setQuery(query);
-    state.setCurrentView('progress');
+    await resume(FETCH_CONTINUE);
   };
-  const isDisabled: boolean = (
-    (
-      state.selectedQuery?.status !== (FETCH_INCOMPLETE as string) &&
-      state.selectedQuery?.status !== (PARSE_INCOMPLETE as string)
-    ) ||
-    limitState.count === 0
+  const isIncomplete: boolean = (
+    selectedQuery?.status === (FETCH_INCOMPLETE as string) ||
+    selectedQuery?.status === (PARSE_INCOMPLETE as string)
   );
+  const isDisabled: boolean = !isIncomplete || limit.count === 0;
 
   return (
     <DialogFooter className="sm:justify-between">
@@ -111,21 +130,36 @@ export function QueryDetailsFooter(): ReactElement<FC> {
         onClick={handleClose}>
         Close
       </Button>
-      {state.selectedQuery?.status !== QUERY_COMPLETE && (
-        <Button variant="default"
-          className="cursor-pointer"
-          disabled={isDisabled}
-          onClick={handleClick}>
-          Complete Extraction
-        </Button>
-      )}
-      {state.selectedQuery?.status === QUERY_COMPLETE && <ExportButton id={state.selectedQuery.id} />}
+      <div className="grid grid-flow-col auto-cols-max gap-x-2">
+        {/* Offered only for a paused extraction: a complete one exports through the button
+            below, and one still running has nothing settled to export yet. Parsing what was
+            already fetched costs no requests, so unlike the button beside it this stays
+            available with an exhausted daily allowance. */}
+        {isIncomplete && state.currentView !== 'progress' && (
+          <Button
+            variant="outline"
+            className="cursor-pointer"
+            disabled={updateStatus.isPending}
+            onClick={(): void => { void resume(CLEAN_CONTINUE); }}>
+            Export Data so Far
+          </Button>
+        )}
+        {selectedQuery?.status !== QUERY_COMPLETE && (
+          <Button variant="default"
+            className="cursor-pointer"
+            disabled={isDisabled || updateStatus.isPending}
+            onClick={handleClick}>
+            Complete Extraction
+          </Button>
+        )}
+        {selectedQuery?.status === QUERY_COMPLETE && <ExportButton id={selectedQuery.id} />}
+      </div>
     </DialogFooter>
   );
 }
 
 export function QueryDetails(): ReactElement<FC> {
-  const selectedQuery = useSelectedQuery((state: SelectedQueryState): Query | null => state.selectedQuery);
+  const selectedQuery: Query | null = useSelectedQueryData();
   const completedPercentage = selectedQuery != null ? Math.round(selectedQuery?.percentage * 100) : 0;
 
   return (
@@ -233,7 +267,7 @@ export function QueryDetails(): ReactElement<FC> {
 }
 
 export function QueryDetailsProgress(): ReactElement<FC> {
-  const selectedQuery = useSelectedQuery((state: SelectedQueryState): Query | null => state.selectedQuery);
+  const selectedQuery: Query | null = useSelectedQueryData();
   const progressPercentage: number = selectedQuery != null ? Math.round(selectedQuery.percentage * 100) : 0;
 
   return (
@@ -251,7 +285,7 @@ export function QueryDetailsProgress(): ReactElement<FC> {
 }
 
 export function QueryDetailsCompletion(): ReactElement<FC> {
-  const selectedQuery = useSelectedQuery((state: SelectedQueryState): Query | null => state.selectedQuery);
+  const selectedQuery: Query | null = useSelectedQueryData();
   const progressPercentage: number = selectedQuery != null ? Math.round(selectedQuery.percentage * 100) : 0;
 
   return (
@@ -316,7 +350,7 @@ export function QueryDetailsDialog(): ReactElement<FC> {
     // outside it and by nothing else (Escape did not close it before either, because the `open`
     // prop is controlled and Radix's escape handler had no onOpenChange to call).
     <Dialog
-      open={state.selectedQuery != null}
+      open={state.selectedQueryID != null}
       onOpenChange={(open, eventDetails): void => {
         if (!open && eventDetails.reason === 'outside-press') handleDialogClose();
       }}

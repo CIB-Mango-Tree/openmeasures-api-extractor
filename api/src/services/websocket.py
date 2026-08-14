@@ -17,6 +17,7 @@ from ..utils.constants import (
     FETCH_UPDATE_PROGRESS,
     CLEAN_IN_PROGRESS,
     PARSE_IN_PROGRESS,
+    PARSE_INCOMPLETE,
     QUERY_COMPLETE,
     LIMIT_MAXED_OUT,
     LIMIT_UPDATE,
@@ -67,6 +68,19 @@ class WebSocketService:
                 payload.data["id"],
                 {
                     "event": PARSE_IN_PROGRESS,
+                    "data": {"message": payload.message, "query": payload.data},
+                },
+            )
+
+        # Relayed for the same reason as the in-progress statuses: a step that fails leaves the
+        # query here, and without the event a client waiting on the parse has nothing telling it
+        # to stop -- it would sit on a spinner until its own timeout expired.
+        @EventLinker.on(PARSE_INCOMPLETE)
+        def handle_incomplete_parse(payload: Event) -> None:
+            self.send_by_topic(
+                payload.data["id"],
+                {
+                    "event": PARSE_INCOMPLETE,
                     "data": {"message": payload.message, "query": payload.data},
                 },
             )

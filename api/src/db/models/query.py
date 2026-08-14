@@ -5,6 +5,7 @@ from .base import BaseModelWithTimestamp
 from .term import QueryTerm
 from .request import QueryRequest
 from ...utils.constants import FETCH_IN_PROGRESS
+from ...utils.search import quote_term
 
 
 class Query(BaseModelWithTimestamp):
@@ -40,6 +41,7 @@ class Query(BaseModelWithTimestamp):
         output: str = ""
 
         for term in self.terms:
-            output += f" {term.modifier} {term.term}" if len(output) > 0 else term.term
+            value = quote_term(term.term)
+            output += f" {term.modifier} {value}" if len(output) > 0 else value
 
         return output

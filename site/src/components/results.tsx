@@ -1,15 +1,18 @@
 import { useFetchingQueryState } from '@lib/state/query';
+import { useQueryByID } from '@lib/api';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@components/ui/card';
 import { Progress } from '@components/ui/progress';
 import { Spinner } from '@components/ui/spinner';
 import { ExportButton } from '@components/export';
 import { QUERY_COMPLETE } from '@constants/status';
 import type { ReactElement, FC } from 'react';
+import type { Query } from '@appTypes/query';
 import type { FetchingQueryState } from '@state/query';
 
 export function QueryResultView(): ReactElement<FC> {
   const fetchQueryState = useFetchingQueryState((state: FetchingQueryState): FetchingQueryState => state);
-  const progressPercentage: number = fetchQueryState.query != null ? Math.round(fetchQueryState.query.percentage * 100) : 0;
+  const query: Query | null = useQueryByID(fetchQueryState.queryID);
+  const progressPercentage: number = query != null ? Math.round(query.percentage * 100) : 0;
 
   return (
     <Card className="col-span-4 h-min">
@@ -31,8 +34,8 @@ export function QueryResultView(): ReactElement<FC> {
       )}
       <CardFooter>
         <ExportButton
-          id={fetchQueryState.query?.id}
-          disabled={fetchQueryState.query == null || fetchQueryState.query.status !== QUERY_COMPLETE} />
+          id={query?.id}
+          disabled={query == null || query.status !== QUERY_COMPLETE} />
       </CardFooter>
     </Card>
   );

@@ -1,7 +1,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import { flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table';
 import { format } from 'date-fns';
-import { useQueries, useSelectedQuery } from '@lib/state/query';
+import { useSelectedQuery } from '@lib/state/query';
+import { useQueryList } from '@lib/api';
 import { cn } from '@lib/utils';
 import { ChevronLeft, ChevronRight, ChevronsUpDown } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@components/ui/card';
@@ -11,8 +12,10 @@ import { Badge } from '@components/ui/badge';
 import { QUERY_COMPLETE, FETCH_INCOMPLETE, PARSE_INCOMPLETE } from '@constants/status';
 import type { ReactElement, FC, PropsWithChildren } from 'react';
 import type { ColumnDef, Column, CellContext, HeaderGroup, Header, HeaderContext, Row, Cell, SortingState } from '@tanstack/react-table';
-import type { QueriesState, SelectedQueryState, QueryCallback } from '@state/query';
+import type { SelectedQueryState } from '@state/query';
 import type { Query } from '@appTypes/query';
+
+type SetSelectedQueryID = (id: string) => void;
 
 export interface QueryTableColumnHeaderProps {
   column: Column<Query, unknown>;
@@ -46,8 +49,8 @@ export function QueryTableColumnHeader({ column, children }: PropsWithChildren<Q
 
 export function QueryTable({ columns }: QueryTableProps): ReactElement<FC> {
   const [sortingState, setSortingState] = useState<SortingState>([]);
-  const set = useSelectedQuery((state: SelectedQueryState): QueryCallback => state.setQuery);
-  const queries = useQueries((state: QueriesState): Array<Query> => state.queries);
+  const set = useSelectedQuery((state: SelectedQueryState): SetSelectedQueryID => state.setQueryID);
+  const { data: queries = [] } = useQueryList();
   const queryTableColumnDefinitions = useMemo((): Array<ColumnDef<Query>> => ([
     {
       accessorKey: 'platform',
@@ -111,7 +114,7 @@ export function QueryTable({ columns }: QueryTableProps): ReactElement<FC> {
         <Button
           variant="secondary"
           className="cursor-pointer"
-          onClick={(): void => set(row.original)}>
+          onClick={(): void => set(row.original.id)}>
           Details
         </Button>
       )

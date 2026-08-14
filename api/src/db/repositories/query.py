@@ -23,6 +23,7 @@ class QueryRepository(BaseRepository[Query]):
                 session.scalars(
                     select(Query)
                     .options(*query_options)
+                    .order_by(Query.created_at.desc())
                 )
             )
 
@@ -57,6 +58,7 @@ class QueryRepository(BaseRepository[Query]):
                     select(Query)
                     .options(*query_options)
                     .where(Query.status == status)
+                    .order_by(Query.created_at.desc())
                 )
             )
 
@@ -75,6 +77,7 @@ class QueryRepository(BaseRepository[Query]):
                     select(Query)
                     .options(*query_options)
                     .where(Query.platform == platform)
+                    .order_by(Query.created_at.desc())
                 )
             )
 

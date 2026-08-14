@@ -3,6 +3,7 @@ from enum import Enum, auto
 from typing import ClassVar
 from pydantic import BaseModel, ConfigDict
 from pyventus.events import EventEmitter
+from sqlalchemy.orm import selectinload
 from ...db.models import Query
 from ...db.repositories import QueryRepository
 from ...event import Event
@@ -74,7 +75,39 @@ class ProcessingStep(ABC):
             logger.error(
                 "%s failed for query %s", type(self).__name__, query.id, exc_info=error
             )
+            self._mark_incomplete(query)
+
             return None
+
+    def _mark_incomplete(self, query: Query) -> None:
+        """Leaves a failed query in a state the user can resume from.
+
+        Without this the query keeps the IN_PROGRESS status set by _resume, which no step handles
+        and no event ever clears: the progress bar spins forever, and the details dialog offers no
+        way to retry because resuming is only offered for an INCOMPLETE status.
+        """
+        try:
+            query.status = self.incomplete_status
+
+            query.set_updated_at()
+
+            # Only the status changed, so there is no reason to cascade into terms and requests.
+            self._query_repo.update(query, True)
+
+            # Reloaded with its terms: repositories detach the instances they return, and
+            # serializing for the event touches `terms`, which would otherwise lazy-load and
+            # raise DetachedInstanceError -- losing the event while the status change survived.
+            reloaded = self._query_repo.find_by_id(query.id, [selectinload(Query.terms)])
+
+            if reloaded is None:
+                return
+
+            self.emit(
+                self.incomplete_status, reloaded, "step failed; query can be resumed"
+            )
+
+        except Exception as error:
+            logger.error("could not mark query %s incomplete", query.id, exc_info=error)
 
     def _resume(self, query: Query) -> Query:
         query.status = self.in_progress_status

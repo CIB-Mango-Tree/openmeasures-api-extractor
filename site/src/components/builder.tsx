@@ -1,10 +1,9 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { toast } from 'sonner';
-import { useLimitState, useLimitAlertState } from '@state/limit';
-import { useFetchingQueryState, useQueries } from '@state/query';
+import { useLimitAlertState } from '@state/limit';
+import { useFetchingQueryState } from '@state/query';
 import { formatISO } from 'date-fns';
-import { POSTQuery } from '@lib/fetch/query';
-import { GETPlatforms } from '@lib/fetch/platform';
+import { useCreateQuery, useLimit, usePlatforms, useQueryByID } from '@lib/api';
 import { ApiError } from '@lib/fetch/client';
 import { mapResponseToQuery } from '@lib/map';
 import { SquarePlus } from 'lucide-react';
@@ -24,20 +23,21 @@ import type { SearchTermValues, SearchTermChangeValues } from '@appTypes/term';
 import type { CreateQueryPayload, QueryTerm, Query, QueryResponse } from '@appTypes/query';
 import type { Platform } from '@appTypes/platform';
 import type { Timezone, TimezoneGroup } from '@constants/timezones';
-import type { APICollectionResponse, APIResponse, APIErrorCollectionResponse, ValidationError } from '@appTypes/fetch';
-import type { LimitState, LimitAlertState } from '@state/limit';
-import type { FetchingQueryState, QueriesState } from '@state/query';
+import type { APIResponse, APIErrorCollectionResponse, ValidationError } from '@appTypes/fetch';
+import type { LimitAlertState } from '@state/limit';
+import type { FetchingQueryState } from '@state/query';
 
 export type SearchTermMap = { [index: string]: SearchTermValues; };
 
 export function QueryBuilder(): ReactElement<FC> {
   const defaultTimezone = useMemo<string>((): string => new Intl.DateTimeFormat().resolvedOptions().timeZone, []);
-  const queriesState = useQueries((state: QueriesState): QueriesState => state);
   const fetchingQueryState = useFetchingQueryState((state: FetchingQueryState): FetchingQueryState => state);
-  const limitState = useLimitState((state: LimitState): LimitState => state);
+  const fetchingQuery: Query | null = useQueryByID(fetchingQueryState.queryID);
+  const limit = useLimit();
   const limitAlertState = useLimitAlertState((state: LimitAlertState): LimitAlertState => state);
-  const [platforms, setPlatforms] = useState<Array<Platform>>([]);
-  const [platformsError, setPlatformsError] = useState<string | null>(null);
+  const platformsResult = usePlatforms();
+  const createQuery = useCreateQuery();
+  const platforms: Array<Platform> = platformsResult.data ?? [];
   const [startDateError, setStartDateError] = useState<ValidationError | null>(null);
   const [endDateError, setEndDateError] = useState<ValidationError | null>(null);
   const [submitDisabled, setSubmitDisabled] = useState<boolean>(false);
@@ -97,7 +97,7 @@ export function QueryBuilder(): ReactElement<FC> {
   const handleSubmit = async (event: FormEvent): Promise<void> => {
     event.preventDefault();
 
-    if (limitState.count === 0) {
+    if (limit.count === 0) {
       limitAlertState.setType('maxed_out');
       limitAlertState.toggleShow();
       return;
@@ -118,7 +118,7 @@ export function QueryBuilder(): ReactElement<FC> {
     let response: APIResponse<QueryResponse> | APIErrorCollectionResponse<ValidationError>;
 
     try {
-      response = await POSTQuery(payload);
+      response = await createQuery.mutateAsync(payload);
 
     } catch (error) {
       // Without this the rejection was unhandled: no message, and the form stayed disabled
@@ -167,53 +167,47 @@ export function QueryBuilder(): ReactElement<FC> {
       return;
     }
 
+    // The mutation has already written the new query into the cache; this only points the
+    // progress card at it.
     const query: Query = mapResponseToQuery((response as APIResponse<QueryResponse>).data);
 
     handleClear();
-    fetchingQueryState.setQuery(query);
-    fetchingQueryState.toggleShow();
-    queriesState.push(query);
+    fetchingQueryState.setQueryID(query.id);
+    if (!fetchingQueryState.showProgress) fetchingQueryState.toggleShow();
   };
 
   // Failing silently here is what produced the empty "Select a platform" dropdown: the rejection
-  // was unhandled, so setPlatforms never ran and the placeholder stayed up with no error anywhere.
-  const loadPlatforms = useCallback(async (): Promise<void> => {
-    setPlatformsError(null);
+  // was unhandled, so the placeholder stayed up with no error anywhere.
+  const platformsError: string | null = useMemo((): string | null => {
+    if (!platformsResult.isError) return null;
 
-    try {
-      const response: APICollectionResponse<Platform> = await GETPlatforms();
+    return platformsResult.error instanceof ApiError && platformsResult.error.isUnreachable
+      ? 'Could not reach the extractor service. It may still be starting up.'
+      : 'Could not load the list of platforms.';
+  }, [platformsResult.isError, platformsResult.error]);
 
-      setPlatforms(response.data);
+  useEffect((): void => {
+    if (platformsError == null) return;
 
-    } catch (error) {
-      const unreachable: boolean = error instanceof ApiError && error.isUnreachable;
+    const unreachable: boolean = platformsResult.error instanceof ApiError && platformsResult.error.isUnreachable;
 
-      setPlatformsError(
-        unreachable
-          ? 'Could not reach the extractor service. It may still be starting up.'
-          : 'Could not load the list of platforms.'
-      );
-      toast.error('Could not load platforms', {
-        description: unreachable
-          ? 'The extractor service is not responding yet. Check the logs printed in the terminal if this persists.'
-          : 'Something went wrong loading the platform list.',
-        action: {
-          label: 'Retry',
-          onClick: (): void => {
-            void loadPlatforms();
-          }
+    toast.error('Could not load platforms', {
+      description: unreachable
+        ? 'The extractor service is not responding yet. Check the logs printed in the terminal if this persists.'
+        : 'Something went wrong loading the platform list.',
+      action: {
+        label: 'Retry',
+        onClick: (): void => {
+          void platformsResult.refetch();
         }
-      });
-    }
-  }, []);
+      }
+    });
+  }, [platformsError]);
 
   useEffect((): void => {
-    void loadPlatforms();
-  }, [loadPlatforms]);
-  useEffect((): void => {
-    if (fetchingQueryState.query == null || fetchingQueryState.query.status !== QUERY_COMPLETE) return;
+    if (fetchingQuery == null || fetchingQuery.status !== QUERY_COMPLETE) return;
     setSubmitDisabled(false);
-  }, [fetchingQueryState.query]);
+  }, [fetchingQuery?.status]);
 
   return (
     <Card className="col-span-8" suppressHydrationWarning>
@@ -321,7 +315,7 @@ export function QueryBuilder(): ReactElement<FC> {
                         size="sm"
                         variant="ghost"
                         onClick={(): void => {
-                          void loadPlatforms();
+                          void platformsResult.refetch();
                         }}>
                         Retry
                       </Button>
