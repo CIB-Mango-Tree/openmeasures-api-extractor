@@ -142,11 +142,16 @@ class QueryService:
             logger.debug("Cancelling processing task for query: %s", str(id))
             task.cancel()
 
-        # EventLinker is a process-global registry and `once` only unregisters when it fires. A
-        # query that completes normally would otherwise leave its handler behind forever, one per
-        # query, for the lifetime of the application.
+        # EventLinker is a process-global registry and `once` only unregisters when it fires, so
+        # a query that completes normally would leave its handler behind for the lifetime of the
+        # application. Removal takes the EventSubscriber that `once` produced -- passing the raw
+        # function raised PyventusException inside the callback and the handler leaked anyway.
         def discard_cancel_handler(_: Task[None]) -> None:
-            EventLinker.remove(cancel_event, handle_task_cancel)
+            try:
+                EventLinker.remove_event(cancel_event)
+
+            except Exception:
+                logger.debug("cancel handler for %s was already removed", str(id))
 
         task.add_done_callback(discard_cancel_handler)
 
